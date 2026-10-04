@@ -63,6 +63,15 @@ Payout: the leader sets integer-percent shares before the job (equal by default)
 - **Defender play.** Live alarm and raid HUD, picking bags back up, 8-second retention into the safe, police heat for raiders. No player combat yet.
 - **Remaining assumptions.** Retention of *any* bag left inside; raids only target crew leaders' live units; one lockup raid at a time per server.
 
+## Stolen-loot recovery (milestone 5 item, implemented)
+Raiders leave clues; the victim gets a time-limited chance to get the **same** loot back. Nothing is minted twice and nothing can be claimed twice.
+
+- **Clue trail.** Every bundle minted by a raid carries the origin `raid:<raidId>` and the label "Stash of <victim>". Each pickup, drop, stow, delivery or absorption of such a bundle writes a clue (landmark + time) onto the victim's report and toasts the victim if online. The report is opened provisionally when the raid starts so no clue is lost, and finalized in place when the raid ends.
+- **Physical intercept.** While bundles are still physical, anyone can take them (existing pickup rules). If the victim's crew (led by the victim) delivers one, the report's `recovered` rises by that bundle's value. The bundle id is the same object that was stolen.
+- **Recovery mission.** From the Hideout tab, a report with an open window (20 min) and value still owed offers "Recover". It starts a raid variant against the raider's hideout (their live pier, or the Breakwater Lockup) under the same exclusive lock, with their defences and the police as counterplay. The crack takes `min(owed, raider's stash)` and never more than this raid already took from that raider (`recoveries[raidId]` on the raider's record), so a lost or re-stolen recovery bundle cannot be re-debited. Recovered value is minted as bundles labelled with the victim's name and must be carried home; the victim is credited only on delivery.
+- **No chains.** A recovery mission's own report carries no recovery window, so a raider cannot "recover" a recovery. One crack per lock still applies.
+- **Assumptions.** Recovery credit requires the victim to lead the delivering crew; the window and clue cap are configurable (`RecoveryWindowSeconds`, `MaxClues`); if the raider's stash is already below what they took, the victim gets what exists.
+
 ## Corrections carried over from the prototype thread (docs/ROADMAP.md in `prototype/aurora-v0`)
 - The rare car is owned by the **individual thief**, never automatically by the assisting crew; ownership survives crew changes for the rest of the weekly cycle. `RareCarCycle` already models the individual owner.
 - A crew member may **leak a hideout**, enabling stash raids and a comeback. (The raid board currently lists hideouts by visible wealth; leaking as a deliberate act is a later milestone.)

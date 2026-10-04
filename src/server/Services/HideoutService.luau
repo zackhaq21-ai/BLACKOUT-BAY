@@ -189,6 +189,7 @@ function HideoutService.pushState(player: Player)
 			exposed = StashRules.exposed(Config.Hideout, record.stash),
 			fullExposure = Config.Hideout.FullExposure,
 			backend = Store.backend,
+			now = os.time(),
 		})
 		if raided then
 			Comms.toast(player, "Your hideout was raided while you were away. Read the report on the job board (Hideout tab).", "alarm")
@@ -315,6 +316,8 @@ function HideoutService.handleRequest(player: Player, req)
 		task.spawn(listTargets, player)
 	elseif action == "startRaid" then
 		S.Raid.startRaid(player, req.userId)
+	elseif action == "recover" then
+		S.Raid.startRecovery(player, req.raidId)
 	end
 end
 

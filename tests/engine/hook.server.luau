@@ -140,6 +140,10 @@ hook.OnInvoke = function(action, a, b, c)
 		end
 		local state = S.Raid.unitState(raid.unitId)
 		return { active = raid.active, cracked = raid.cracked, stolen = raid.stolen, retained = raid.retained, unitId = raid.unitId, safe = state and state.refs.safe or nil, pierDoor = state and state.refs.pierDoor or nil, breaker = state and state.refs.breaker or nil, unitModel = raid.unit.model, bundles = raid.bundles }
+	elseif action == "recover" then
+		S.Raid.startRecovery(a, b)
+		local crew = S.Crew.crewOf(a)
+		return S.Raid.raidOfCrew(crew.id) ~= nil
 	elseif action == "crackNow" then
 		return S.Raid.testSetCrack(a, 0.999)
 	elseif action == "arrest" then

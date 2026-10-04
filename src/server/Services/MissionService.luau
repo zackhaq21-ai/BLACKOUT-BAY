@@ -41,7 +41,7 @@ local function objectiveFor(job): (string, string)
 		if not r.active then
 			return "Raid over", ""
 		elseif r.entry == nil then
-			return "Break into " .. r.targetName .. "'s hideout", r.unit.label .. ": cut the shield breaker on the outside wall, or the pier door at the back. Lasers inside drop your bag."
+			return (if r.recovery then "Recover your stash from " else "Break into ") .. r.targetName .. "'s hideout", r.unit.label .. ": cut the shield breaker on the outside wall, or the pier door at the back. Lasers inside drop your bag." .. (if r.recovery then string.format(" They owe you %d.", r.recovery.remaining) else "")
 		elseif not r.cracked then
 			return "Crack the safe", "Stay on the safe. A crewmate beside you halves the time. Laser trips can lock it."
 		elseif r.stolen == 0 then

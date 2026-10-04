@@ -163,6 +163,7 @@ Config.Hideout = {
 	RaidCooldownSeconds = 600, -- the same hideout cannot be raided again for this long
 	RaidListSize = 8, -- richest offline hideouts shown on the raid board
 	RecoveryWindowSeconds = 1200, -- how long a recovery opportunity stays open after a raid
+	MaxClues = 12, -- clue trail entries kept per raid report
 	MaxReports = 10,
 	-- Six tiers. Each tier adds one defence or strengthens one; costs are paid from the stash.
 	Tiers = {

@@ -213,6 +213,54 @@ local ok, result = xpcall(function()
 		raidResult = { stolen = cracked.stolen, bundles = #bundleIds, delivered = delivered, raiderStash = raiderStash }
 		print("GLASSHOUSE_ENGINE_RAID_SUCCESS", args.count, "stolen", cracked.stolen, "bundles", #bundleIds)
 
+		-- 7b. Recovery: the victim tracks the clues and takes back exactly what was stolen, no more, once
+		step("recovery")
+		assert(report.clues and #report.clues >= 1, "No clue trail on the victim's report")
+		assert(hook:Invoke("recover", leader, report.raidId), "Recovery mission did not start")
+		local rrs = hook:Invoke("raidState", leader)
+		assert(rrs and rrs.active and rrs.safe, "Recovery raid state missing")
+		move(leader, rrs.safe.Position + Vector3.new(0, 3, 4))
+		trigger(leader, rrs.safe, "RaidSafe")
+		assert(hook:Invoke("crackNow", leader), "Recovery cracking did not start")
+		local rcracked = waitFor(function()
+			local st = hook:Invoke("raidState", leader)
+			return st and st.cracked and st or nil
+		end, 6, "Recovery safe never cracked")
+		assert(rcracked.stolen == stashAfter, "Recovery took " .. tostring(rcracked.stolen) .. ", expected exactly " .. tostring(stashAfter))
+		assert(hook:Invoke("stash", raider).stash == raiderStash - stashAfter, "Raider stash not debited by exactly the stolen amount")
+		local rIds = {}
+		for id in pairs(rcracked.bundles) do
+			table.insert(rIds, id)
+		end
+		table.sort(rIds)
+		for _, id in ipairs(rIds) do
+			local visual = hook:Invoke("lootVisual", id)
+			assert(visual, "Recovery bundle visual missing " .. id)
+			move(leader, visual.PrimaryPart.Position + Vector3.new(0, 2, 3))
+			trigger(leader, visual.PrimaryPart, "LootPickup")
+			move(leader, unit.deliveryTable.Position + Vector3.new(0, 3, 4))
+			trigger(leader, unit.deliveryTable, "Deliver")
+		end
+		hook:Invoke("closeJob", leader)
+		waitFor(function()
+			return not hook:Invoke("jobActive", leader)
+		end, 5, "Recovery job did not close")
+		waitFor(function()
+			return hook:Invoke("stash", leader).stash == stashAfter
+		end, 8, "Victim stash not restored to exactly the stolen amount")
+		local victimReport = waitFor(function()
+			local st = hook:Invoke("stash", leader)
+			for _, rep in ipairs(st.reports) do
+				if rep.raidId == report.raidId and (rep.recovered or 0) == stashAfter then
+					return rep
+				end
+			end
+			return nil
+		end, 8, "Victim report not credited with the recovery")
+		assert(not hook:Invoke("recover", leader, report.raidId), "A second recovery for the same raid must be refused")
+		raidResult.recovered = victimReport.recovered
+		print("GLASSHOUSE_ENGINE_RECOVERY_SUCCESS", args.count, "recovered", victimReport.recovered)
+
 		-- 8. Disconnect: a carrier who leaves drops the bag where they stood
 		step("disconnect")
 		local ids = hook:Invoke("lootItems")

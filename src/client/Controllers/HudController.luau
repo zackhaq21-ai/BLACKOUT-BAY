@@ -440,10 +440,10 @@ function HudController.init()
 		table.insert(parts, if r.cracked then string.format("safe open: %s out, %s kept", fmt(r.stolen or 0), fmt(r.retained or 0)) else "safe shut")
 		table.insert(parts, string.format("%d:%02d left", math.floor((r.secondsLeft or 0) / 60), (r.secondsLeft or 0) % 60))
 		if r.defending then
-			refs.raidTitle.Text = string.format("YOUR HIDEOUT IS UNDER RAID — %s's crew (%d)", r.raiderName or "?", r.crewSize or 1)
+			refs.raidTitle.Text = if r.recovery then string.format("%s IS TAKING BACK WHAT YOU STOLE (%s owed)", (r.raiderName or "?"):upper(), fmt(r.owed or 0)) else string.format("YOUR HIDEOUT IS UNDER RAID — %s's crew (%d)", r.raiderName or "?", r.crewSize or 1)
 			refs.raidTitle.TextColor3 = Theme.Alarm
 		else
-			refs.raidTitle.Text = string.format("Raid: %s's hideout (tier %d) at %s", r.targetName or "?", r.tier or 0, r.unitLabel or "?")
+			refs.raidTitle.Text = if r.recovery then string.format("Recovery: %s owes you %s · %s", r.targetName or "?", fmt(r.owed or 0), r.unitLabel or "?") else string.format("Raid: %s's hideout (tier %d) at %s", r.targetName or "?", r.tier or 0, r.unitLabel or "?")
 			refs.raidTitle.TextColor3 = Theme.Gold
 		end
 		refs.raidText.Text = table.concat(parts, " · ")

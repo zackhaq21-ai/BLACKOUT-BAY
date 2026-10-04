@@ -19,6 +19,7 @@ local raids = {} -- crewId -> raid
 local units = {} -- unitId -> unit state { unit, ownerUserId, ownerName, tier, refs, shieldDown, doorOpen, alarmed, safeLockedUntil, cracked, cracking, retainTimers }
 local laserDebounce = {} -- player -> time
 local serverId = (game.JobId ~= "" and game.JobId) or "studio"
+local Blueprint = require(ReplicatedStorage.Shared.MapBlueprint)
 
 local function now()
 	return os.clock()
@@ -178,6 +179,8 @@ local function raidSnapshot(raid)
 		retained = raid.retained,
 		secondsLeft = math.max(0, math.floor(raid.expiresAt - now())),
 		entry = raid.entry,
+		recovery = raid.recovery ~= nil,
+		owed = raid.recovery and raid.recovery.remaining or nil,
 	}
 end
 
@@ -224,7 +227,7 @@ local function triggerAlarm(raid, how: string)
 end
 
 -- Raid lifecycle -------------------------------------------------------------------------------
-function RaidService.startRaid(player: Player, targetUserId: number)
+local function beginRaid(player: Player, targetUserId: number, recovery)
 	local S = RaidService.ctx.services
 	local crew = crewOf(player)
 	if not crew then
@@ -237,6 +240,7 @@ function RaidService.startRaid(player: Player, targetUserId: number)
 		Comms.toast(player, "You can't raid your own hideout.", "warn")
 		return
 	end
+	local verb = if recovery then "recover from" else "raid"
 	for _, m in ipairs(crew.members) do
 		if m.UserId == targetUserId then
 			Comms.toast(player, "That's your crewmate's hideout. Leave the crew first if you mean it.", "warn")
@@ -256,7 +260,7 @@ function RaidService.startRaid(player: Player, targetUserId: number)
 		return HideoutRecord.claimRaid(r, serverId, Comms.key(player), Comms.name(player), unix(), HC.RaidMaxSeconds, HC.RaidCooldownSeconds)
 	end)
 	if not ok then
-		Comms.toast(player, "Can't raid " .. targetName .. ": " .. tostring(err), "warn")
+		Comms.toast(player, "Can't " .. verb .. " " .. targetName .. ": " .. tostring(err), "warn")
 		return
 	end
 	-- Where: the owner's live unit if they lead a crew on this server, else the Breakwater Lockup
@@ -297,8 +301,19 @@ function RaidService.startRaid(player: Player, targetUserId: number)
 		retained = 0,
 		cracked = false,
 		active = true,
+		recovery = recovery, -- { raidId, victimUserId, victimName, remaining } for a recovery mission
 	}
 	raids[crew.id] = raid
+	-- Provisional report so the clue trail has a home from the first bundle move
+	do
+		local crewNames = {}
+		for _, m in ipairs(crew.members) do
+			table.insert(crewNames, Comms.name(m))
+		end
+		S.HideoutStore.apply(targetUserId, function(r)
+			return HideoutRecord.openReport(r, { t = unix(), raidId = raid.id, raider = raid.raiderKey, raiderName = raid.raiderName, crewNames = crewNames, entry = "in progress", defences = {}, lost = 0, retained = 0, recovered = 0, recovery = recovery ~= nil, clues = {} }, HC.MaxReports), nil
+		end)
+	end
 	local job = S.Mission.startRaidJob(player, raid)
 	if not job then
 		raids[crew.id] = nil
@@ -311,13 +326,46 @@ function RaidService.startRaid(player: Player, targetUserId: number)
 		Comms.toast(player, "Could not start the raid job.", "warn")
 		return
 	end
-	S.EventLog.crew(crew.id, string.format("%s started a raid on %s's hideout (tier %d) at %s", Comms.name(player), targetName, record.tier, unit.label))
-	Comms.toastMany(crew.members, string.format("Raid on %s (tier %d) at %s. Shield breaker on the outside wall, or the pier door at the back. %d min.", targetName, record.tier, unit.label, math.floor(HC.RaidMaxSeconds / 60)), "good")
+	if recovery then
+		S.EventLog.crew(crew.id, string.format("%s started a recovery mission: %d owed by %s (tier %d) at %s", Comms.name(player), recovery.remaining, targetName, record.tier, unit.label))
+		Comms.toastMany(crew.members, string.format("RECOVERY: %s owes %d. Crack their safe at %s; it gives up only what they took. %d min.", targetName, recovery.remaining, unit.label, math.floor(HC.RaidMaxSeconds / 60)), "good")
+	else
+		S.EventLog.crew(crew.id, string.format("%s started a raid on %s's hideout (tier %d) at %s", Comms.name(player), targetName, record.tier, unit.label))
+		Comms.toastMany(crew.members, string.format("Raid on %s (tier %d) at %s. Shield breaker on the outside wall, or the pier door at the back. %d min.", targetName, record.tier, unit.label, math.floor(HC.RaidMaxSeconds / 60)), "good")
+	end
 	local owner = ownerPlayer(state)
 	if owner then
-		Comms.toast(owner, string.format("%s's crew is moving on your hideout at %s.", Comms.name(player), unit.label), "alarm")
+		Comms.toast(owner, string.format("%s's crew is moving on your hideout at %s%s.", Comms.name(player), unit.label, if recovery then " to take back what you stole" else ""), "alarm")
 	end
 	pushRaidState(raid)
+end
+
+function RaidService.startRaid(player: Player, targetUserId: number)
+	beginRaid(player, targetUserId, nil)
+end
+
+-- Victim starts a time-limited recovery mission against the raider named in one of their reports.
+function RaidService.startRecovery(player: Player, raidId: string)
+	local S = RaidService.ctx.services
+	if type(raidId) ~= "string" then
+		return
+	end
+	local record = S.HideoutStore.load(player.UserId)
+	local rep = HideoutRecord.reportFor(record, raidId)
+	if not rep or not rep.recoveryRaider then
+		Comms.toast(player, "No recovery is open for that raid.", "warn")
+		return
+	end
+	local remaining = HideoutRecord.recoverable(record, raidId, unix())
+	if remaining <= 0 then
+		Comms.toast(player, if rep.recoveryUntil and unix() >= rep.recoveryUntil then "The trail has gone cold. The recovery window closed." else "Everything from that raid is already back.", "warn")
+		return
+	end
+	local raiderId = tonumber(rep.recoveryRaider)
+	if not raiderId then
+		return
+	end
+	beginRaid(player, raiderId, { raidId = raidId, victimUserId = player.UserId, victimName = Comms.name(player), remaining = remaining })
 end
 
 local function finishRaid(raid, reason: string)
@@ -334,6 +382,7 @@ local function finishRaid(raid, reason: string)
 	local lost = math.max(0, raid.stolen - raid.retained)
 	local report = {
 		t = unix(),
+		raidId = raid.id,
 		raider = raid.raiderKey,
 		raiderName = raid.raiderName,
 		crewNames = crewNames,
@@ -341,8 +390,12 @@ local function finishRaid(raid, reason: string)
 		defences = raid.triggered,
 		lost = lost,
 		retained = raid.retained,
-		recoveryUntil = if lost > 0 then unix() + HC.RecoveryWindowSeconds else nil,
-		recoveryRaider = if lost > 0 then raid.raiderKey else nil,
+		recovered = 0,
+		recovery = raid.recovery ~= nil,
+		-- a recovery mission does not open another recovery window (no endless chains)
+		recoveryUntil = if lost > 0 and not raid.recovery then unix() + HC.RecoveryWindowSeconds else nil,
+		recoveryRaider = if lost > 0 and not raid.recovery then raid.raiderKey else nil,
+		clues = {},
 	}
 	S.HideoutStore.apply(raid.targetUserId, function(r)
 		return HideoutRecord.releaseRaid(r, serverId, raid.raiderKey, report, HC.MaxReports, unix())
@@ -542,11 +595,18 @@ local function tickCracking(dt: number)
 						raid.cracked = true
 						state.cracking = {}
 						Comms.hud(player, { crackProgress = 0 })
-						local ok, amount = S.HideoutStore.apply(raid.targetUserId, function(r)
-							return HideoutRecord.crack(r, serverId, raid.raiderKey, function(stash)
-								return StashRules.exposed(HC, stash)
-							end, unix())
-						end)
+						local ok, amount
+						if raid.recovery then
+							ok, amount = S.HideoutStore.apply(raid.targetUserId, function(r)
+								return HideoutRecord.recover(r, serverId, raid.raiderKey, raid.recovery.raidId, raid.recovery.remaining, unix())
+							end)
+						else
+							ok, amount = S.HideoutStore.apply(raid.targetUserId, function(r)
+								return HideoutRecord.crack(r, serverId, raid.raiderKey, function(stash)
+									return StashRules.exposed(HC, stash)
+								end, unix())
+							end)
+						end
 						if not ok then
 							state.cracked = false
 							Comms.toastMany(raid.crew.members, "The safe jammed (store unavailable). Try again.", "warn")
@@ -560,12 +620,14 @@ local function tickCracking(dt: number)
 						end
 						if raid.stolen > 0 then
 							local values = StashRules.bundles(HC, raid.stolen)
-							local ids = S.Loot.mintBundles(values, safePos + Vector3.new(0, 1, 4), "hideout:" .. tostring(raid.targetUserId))
+							local origin = if raid.recovery then "raid:" .. raid.recovery.raidId else "raid:" .. raid.id
+							local label = if raid.recovery then "Stash of " .. raid.recovery.victimName else "Stash of " .. raid.targetName
+							local ids = S.Loot.mintBundles(values, safePos + Vector3.new(0, 1, 4), origin, label)
 							for _, id in ipairs(ids) do
 								raid.bundles[id] = true
 							end
 							S.Mission.minted(raid.crewId, ids, "Stash Bundle")
-							Comms.toastMany(raid.crew.members, string.format("Safe open: %d in %d bundle(s). Get them home.", raid.stolen, #values), "good")
+							Comms.toastMany(raid.crew.members, string.format("Safe open: %d in %d bundle(s). Get them home.%s", raid.stolen, #values, if raid.recovery then " Only what they took came out." else ""), "good")
 						else
 							Comms.toastMany(raid.crew.members, "Safe open... and nearly empty. Nothing above the protected floor.", "warn")
 						end
@@ -664,12 +726,79 @@ function RaidService.testSetCrack(player: Player, progress: number)
 	return false
 end
 
+-- Clue trail and recovery credit: every move of a "raid:<id>" bundle leaves a clue on the victim's report;
+-- a delivery by the victim's crew credits the report (the same bundle, never a copy).
+local function victimOfOrigin(origin: string?): (string?, number?)
+	if type(origin) ~= "string" then
+		return nil, nil
+	end
+	local raidId = origin:match("^raid:(.+)$")
+	if not raidId then
+		return nil, nil
+	end
+	local victim = tonumber(raidId:match("^raid_(%d+)_") or "")
+	return raidId, victim
+end
+
+local function leaderOf(player: Player): number?
+	local crew = RaidService.ctx.services.Crew.crewOf(player)
+	return crew and crew.leader.UserId or nil
+end
+
+local function addClue(victimUserId: number, raidId: string, text: string)
+	local S = RaidService.ctx.services
+	S.HideoutStore.apply(victimUserId, function(r)
+		local rec = HideoutRecord.addClue(r, raidId, { t = unix(), text = text }, HC.MaxClues)
+		return rec, nil
+	end)
+	local victim = Players:GetPlayerByUserId(victimUserId)
+	if victim then
+		Comms.toast(victim, "Clue: " .. text, "warn")
+		S.Hideout.pushState(victim)
+	end
+end
+
+local function onLootEvent(kind: string, data)
+	local item = data.item
+	local raidId, victimUserId = victimOfOrigin(item and item.origin)
+	if not raidId or not victimUserId then
+		return
+	end
+	local S = RaidService.ctx.services
+	local who = data.player and Comms.name(data.player) or "someone"
+	local pos = data.position or (data.player and data.player.Character and data.player.Character:GetPivot().Position) or nil
+	local where = if pos then Blueprint.nearestLandmark(pos.X, pos.Z) else "the island"
+	if kind == "pickup" then
+		addClue(victimUserId, raidId, string.format("%s picked up %s near %s", who, item.label, where))
+	elseif kind == "drop" then
+		addClue(victimUserId, raidId, string.format("%s left on the ground near %s (%s)", item.label, where, data.note or "dropped"))
+	elseif kind == "stow" then
+		local vlabel = data.vehicle and data.vehicle:GetAttribute("Label") or "a vehicle"
+		addClue(victimUserId, raidId, string.format("%s stowed %s in a %s near %s", who, item.label, tostring(vlabel), where))
+	elseif kind == "deliver" and data.player then
+		local crew = S.Crew.crewOf(data.player)
+		local unitLabel = crew and crew.unit and crew.unit.label or "a hideout"
+		if leaderOf(data.player) == victimUserId then
+			-- the victim's crew got it back: credit the report, bounded by what was lost
+			S.HideoutStore.apply(victimUserId, function(r)
+				return HideoutRecord.noteRecovered(r, raidId, data.value)
+			end)
+			addClue(victimUserId, raidId, string.format("RECOVERED %d: %s brought %s home", data.value, who, item.label))
+		else
+			addClue(victimUserId, raidId, string.format("%s delivered %s to %s", who, item.label, unitLabel))
+		end
+	elseif kind == "absorbed" then
+		addClue(victimUserId, raidId, string.format("%s: %s", item.label, data.note or "gone"))
+	end
+end
+
 function RaidService.init(ctx)
 	RaidService.ctx = ctx
 end
 
 function RaidService.start()
 	local S = RaidService.ctx.services
+	S.Loot.onEvent(onLootEvent)
 	task.spawn(function()
 		local last = now()
 		while true do

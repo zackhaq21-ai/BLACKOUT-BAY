@@ -505,13 +505,13 @@ function LootService.restockMuseum(seed: number)
 end
 
 -- Mint stolen stash as physical bundles on the floor. Returns the new item ids.
-function LootService.mintBundles(values: { number }, position: Vector3, origin: string): { string }
+function LootService.mintBundles(values: { number }, position: Vector3, origin: string, label: string?): { string }
 	local ids = {}
 	for i, value in ipairs(values) do
 		itemCounter += 1
 		local id = string.format("Bundle_%d", itemCounter)
 		local spec = Config.Economy.Loot.Bundle
-		ledger:register({ id = id, kind = "Bundle", label = spec.label, value = value, weight = "Light", position = position, origin = origin })
+		ledger:register({ id = id, kind = "Bundle", label = label or spec.label, value = value, weight = "Light", position = position, origin = origin })
 		local item = ledger:get(id)
 		item.state = "Dropped"
 		item.position = position

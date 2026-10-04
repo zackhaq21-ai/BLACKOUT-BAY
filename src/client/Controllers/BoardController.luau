@@ -393,9 +393,26 @@ local function renderHideout()
 		local when = if ago < 3600 then string.format("%d min ago", math.floor(ago / 60)) elseif ago < 86400 then string.format("%d h ago", math.floor(ago / 3600)) else string.format("%d d ago", math.floor(ago / 86400))
 		Make.label(card, "Who", string.format("%s%s · %s", r.raiderName or "?", if r.crewNames and #r.crewNames > 1 then " + " .. tostring(#r.crewNames - 1) else "", when), Theme.Body, if i <= (h.unread or 0) then Theme.Alarm else Theme.Text, true)
 		Make.label(card, "How", "Entry: " .. tostring(r.entry) .. (if r.defences and #r.defences > 0 then " · Defences: " .. table.concat(r.defences, ", ") else " · No defences triggered"), Theme.Small, Theme.Muted)
-		Make.label(card, "What", string.format("Lost %s · Defences kept %s", fmt(r.lost or 0), fmt(r.retained or 0)), Theme.Small, if (r.lost or 0) > 0 then Theme.Alarm else Theme.Good)
-		if r.recoveryUntil and r.recoveryUntil > os.time() then
-			Make.label(card, "Rec", string.format("Recovery opportunity: %d min left (recovery missions arrive in a later milestone)", math.floor((r.recoveryUntil - os.time()) / 60)), Theme.Small, Theme.Gold)
+		local serverNow = h.now or os.time()
+		local recovered = r.recovered or 0
+		local owed = math.max(0, (r.lost or 0) - recovered)
+		if r.recovery then
+			Make.label(card, "What", string.format("They recovered %s from you", fmt(r.lost or 0)), Theme.Small, Theme.Alarm)
+		else
+			Make.label(card, "What", string.format("Lost %s · Defences kept %s · Recovered %s", fmt(r.lost or 0), fmt(r.retained or 0), fmt(recovered)), Theme.Small, if owed > 0 then Theme.Alarm else Theme.Good)
+		end
+		for ci = math.max(1, #(r.clues or {}) - 3), #(r.clues or {}) do
+			local c = r.clues[ci]
+			Make.label(card, "Clue" .. ci, "· " .. tostring(c.text), Theme.Small, Theme.Muted)
+		end
+		if r.recoveryUntil and r.recoveryUntil > serverNow and owed > 0 and r.raidId then
+			local btn = Make.button(card, "Recover", string.format("Recover %s — trail goes cold in %d min", fmt(owed), math.max(1, math.floor((r.recoveryUntil - serverNow) / 60))), Theme.Gold, function()
+				hideoutSend("recover", { raidId = r.raidId })
+				BoardController.close()
+			end)
+			btn.TextColor3 = Theme.Panel
+		elseif r.recoveryUntil and owed > 0 then
+			Make.label(card, "Cold", "Trail went cold: the recovery window closed.", Theme.Small, Theme.Muted)
 		end
 	end
 end
