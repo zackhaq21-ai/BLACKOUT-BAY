@@ -72,6 +72,12 @@ Raiders leave clues; the victim gets a time-limited chance to get the **same** l
 - **No chains.** A recovery mission's own report carries no recovery window, so a raider cannot "recover" a recovery. One crack per lock still applies.
 - **Assumptions.** Recovery credit requires the victim to lead the delivering crew; the window and clue cap are configurable (`RecoveryWindowSeconds`, `MaxClues`); if the raider's stash is already below what they took, the victim gets what exists.
 
+## Getaway deception: fake bags and decoy vehicles (approved tactics, implemented)
+- **Fake bags** are packed at the crew's own job board for 150 from the leader's stash, at most three out per crew. A fake mimics a chosen kind (Trinket, Relic, Jewel, Core, or a "Stash of <you>" bundle): same visual, same label on nameplates and tags, a plausible shown value. It has its own ledger id and is never real loot: worth 0 on delivery, never counted as a job's loot, cleared when the crew's job closes.
+- **Reading the situation.** Fakes are always light, so someone sprinting with a "Core" is lying. Anyone outside the crew who picks a fake up learns it is fake immediately (the label flips to "Fake bag"), so a rival's interception costs them a grab and a chase. Police heat for being seen carrying still applies to the decoy carrier: misdirection has a price.
+- **Decoy vehicles** need no new mechanic: roll out a second car, put a fake in its trunk, and send it the exposed way. Cruisers chase recognised vehicles and wanted drivers, so a wanted decoy driver pulls pursuit; real loot is split between trunks (bundles and bags keep their individual ids as they move between containers).
+- **Assumptions.** Cost, cap and mimic list are configurable in `Config.Decoys`; a fake "Stash of" bundle carries the crafter's name, not a victim's, so it cannot forge a recovery clue (clues only follow `raid:` origins).
+
 ## Corrections carried over from the prototype thread (docs/ROADMAP.md in `prototype/aurora-v0`)
 - The rare car is owned by the **individual thief**, never automatically by the assisting crew; ownership survives crew changes for the rest of the weekly cycle. `RareCarCycle` already models the individual owner.
 - A crew member may **leak a hideout**, enabling stash raids and a comeback. (The raid board currently lists hideouts by visible wealth; leaking as a deliberate act is a later milestone.)

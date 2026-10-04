@@ -16,7 +16,10 @@ export type Item = {
 	position: any?, -- opaque (Vector3 in Roblox) when Dropped/InCase
 	deliveredTo: string?, -- crew job id when Delivered
 	deliveredBy: string?,
-	origin: string?, -- e.g. "AuroraExchange"
+	origin: string?, -- e.g. "AuroraExchange", "raid:<id>", "fake:<crewId>"
+	mimic: string?, -- fakes: the kind they imitate
+	mimicValue: number?, -- fakes: the value they pretend to carry
+	revealed: boolean?, -- fakes: picked up by someone outside the crew
 	history: { Transition },
 }
 
@@ -54,6 +57,9 @@ function LootLedger.register(self: LootLedger, spec: { id: string, kind: string,
 		state = "InCase",
 		position = spec.position,
 		origin = spec.origin,
+		mimic = nil,
+		mimicValue = nil,
+		revealed = nil,
 		history = {},
 	}
 	return true, nil

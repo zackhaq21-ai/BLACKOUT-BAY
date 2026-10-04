@@ -133,6 +133,7 @@ local function closeJob(crewId: string, reason: string)
 	end
 	local flow = job.flow
 	flow:close(reason)
+	MissionService.ctx.services.Loot.clearFakes(crewId)
 	if job.raid then
 		MissionService.ctx.services.Raid.onJobClosed(crewId, reason)
 	end
@@ -263,6 +264,9 @@ end
 local function onLootEvent(kind: string, data)
 	local Loot = MissionService.ctx.services.Loot
 	local EventLog = MissionService.ctx.services.EventLog
+	if data.item and data.item.kind == "Fake" then
+		return -- decoys never count as the job's loot
+	end
 	if kind == "pickup" then
 		local job = jobOf(data.crewId)
 		if job then

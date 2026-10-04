@@ -152,6 +152,25 @@ local ok, result = xpcall(function()
 	assert(hook:Invoke("startJob", leader), "Retry start failed")
 	hook:Invoke("closeJob", leader)
 
+	-- 5b. Fake bag: looks like a Jewel, carried as such, worth nothing on delivery, never counted as job loot
+	step("fake")
+	assert(hook:Invoke("fake", leader, "Jewel"), "Fake bag did not mint")
+	local carriedFake = hook:Invoke("carried", leader)
+	assert(#carriedFake == 1 and carriedFake[1] == "Aurora Jewel", "Fake is not carried under its mimic label")
+	local stashBeforeFake = hook:Invoke("stash", leader).stash
+	move(leader, unit.board.Position + Vector3.new(0, 3, 4))
+	assert(hook:Invoke("startJob", leader), "Start job (fake run) failed")
+	move(leader, unit.deliveryTable.Position + Vector3.new(0, 3, 4))
+	trigger(leader, unit.deliveryTable, "Deliver")
+	assert(#hook:Invoke("carried", leader) == 0, "Fake was not consumed on delivery")
+	hook:Invoke("closeJob", leader)
+	waitFor(function()
+		return not hook:Invoke("jobActive", leader)
+	end, 5, "Fake run did not close")
+	task.wait(1)
+	assert(hook:Invoke("stash", leader).stash == stashBeforeFake, "A fake bag changed the stash")
+	print("GLASSHOUSE_ENGINE_FAKE_OK", args.count)
+
 	-- 6. Arrest and release
 	step("jail")
 	assert(hook:Invoke("arrest", leader), "Arrest failed")

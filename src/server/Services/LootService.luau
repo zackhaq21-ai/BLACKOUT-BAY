@@ -26,6 +26,7 @@ local KIND_COLORS = {
 	Jewel = Palette.Gold,
 	Core = Palette.SeaGlass,
 	Bundle = Palette.Gold,
+	Fake = Palette.Gold,
 }
 
 function LootService.init(ctx)
@@ -57,9 +58,10 @@ local function makeVisual(item): Model
 	local m = Instance.new("Model")
 	m.Name = "Loot_" .. item.id
 	m:SetAttribute("ItemId", item.id)
-	local color = KIND_COLORS[item.kind] or Palette.SeaGlass
+	local looksLike = item.mimic or item.kind
+	local color = KIND_COLORS[looksLike] or Palette.SeaGlass
 	local body
-	if item.weight == "Heavy" then
+	if item.weight == "Heavy" or looksLike == "Core" then
 		body = Instance.new("Part")
 		body.Size = Vector3.new(3, 3, 3)
 		body.Material = Enum.Material.Metal
@@ -104,7 +106,7 @@ local function makeVisual(item): Model
 	local tl = Instance.new("TextLabel")
 	tl.Size = UDim2.fromScale(1, 1)
 	tl.BackgroundTransparency = 1
-	tl.Text = string.format("%s\n%d", item.label, item.value)
+	tl.Text = string.format("%s\n%d", item.label, if item.kind == "Fake" then (item.mimicValue or 0) else item.value)
 	tl.TextColor3 = color
 	tl.TextStrokeTransparency = 0.2
 	tl.TextScaled = true
@@ -265,10 +267,17 @@ function LootService.pickUp(player: Player, itemId: string, source: string): boo
 		Comms.toast(player, if err == "hands full" then "Your hands are full. Drop what you're carrying first." else "Can't take that right now.", "warn")
 		return false
 	end
+	local myCrew = crewIdOf(player)
+	if item.kind == "Fake" and item.origin ~= "fake:" .. tostring(myCrew) and not item.revealed then
+		item.revealed = true
+		item.label = Config.Economy.Loot.Fake.label
+		item.mimic = nil
+		item.mimicValue = 0
+		Comms.toast(player, "This bag is a FAKE. Someone wanted you chasing it.", "warn")
+	end
 	renderCarried(item, player)
 	sendCarry(player)
 	Comms.cue(player, "Pickup")
-	local myCrew = crewIdOf(player)
 	emit("pickup", { player = player, item = item, fromState = fromState, source = source, crewId = myCrew })
 	if fromState == "Dropped" and previousCrew and previousCrew ~= myCrew then
 		emit("stolen", { player = player, item = item, fromCrewId = previousCrew, crewId = myCrew })
@@ -387,6 +396,13 @@ function LootService.deliver(player: Player, jobId: string): (number, { any })
 	local delivered = {}
 	local total = 0
 	for _, item in ipairs(ledger:carriedBy(key)) do
+		if item.kind == "Fake" then
+			ledger:destroy(item.id, "fake delivered")
+			clearVisual(item.id)
+			Comms.toast(player, "That bag was a fake. Nothing to fence.", "warn")
+			sendCarry(player)
+			continue
+		end
 		local ok, _, value = ledger:deliver(item.id, key, jobId)
 		if ok then
 			total += value
@@ -520,6 +536,68 @@ function LootService.mintBundles(values: { number }, position: Vector3, origin: 
 		table.insert(ids, id)
 	end
 	return ids
+end
+
+-- A fake bag for a crew. Mimics a real kind (visual, label, shown value) but is always light and worth 0.
+-- It never shares an id with real loot, and it is never counted as touched loot by a job.
+function LootService.mintFake(player: Player, mimicKind: string): (boolean, string?)
+	local crewId = crewIdOf(player)
+	if not crewId then
+		return false, "no crew"
+	end
+	local live = 0
+	for _, item in pairs(ledger.items) do
+		if item.kind == "Fake" and item.origin == "fake:" .. crewId and item.state ~= "Destroyed" then
+			live += 1
+		end
+	end
+	if live >= Config.Decoys.MaxFakesPerCrew then
+		return false, string.format("your crew already has %d fake bags out", live)
+	end
+	local mimic = Config.Economy.Loot[mimicKind]
+	if not mimic or not table.find(Config.Decoys.Mimics, mimicKind) then
+		return false, "unknown kind"
+	end
+	itemCounter += 1
+	local id = string.format("Fake_%d", itemCounter)
+	local label = if mimicKind == "Bundle" then "Stash of " .. Comms.name(player) else mimic.label
+	ledger:register({ id = id, kind = "Fake", label = label, value = 0, weight = "Light", origin = "fake:" .. crewId })
+	local item = ledger:get(id)
+	item.mimic = mimicKind
+	item.mimicValue = if mimicKind == "Bundle" then Config.Decoys.BundleMimicValue else mimic.value
+	lastCrewTouch[id] = crewId
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local pos = if root then root.Position + root.CFrame.LookVector * 2.5 + Vector3.new(0, 1, 0) else Vector3.new(-390, 3, 322)
+	if #ledger:carriedBy(Comms.key(player)) == 0 then
+		item.state = "Dropped"
+		item.position = pos
+		ledger:pickUp(id, Comms.key(player), Config.Player.MaxCarry)
+		renderCarried(item, player)
+		sendCarry(player)
+	else
+		item.state = "Dropped"
+		item.position = pos
+		renderDropped(item, pos)
+	end
+	return true, nil
+end
+
+-- Destroy a crew's live fakes (job closed). Returns how many were removed.
+function LootService.clearFakes(crewId: string): number
+	local n = 0
+	for id, item in pairs(ledger.items) do
+		if item.kind == "Fake" and item.origin == "fake:" .. crewId and item.state ~= "Destroyed" then
+			local holder = item.holder and Players:GetPlayerByUserId(tonumber(item.holder) or 0)
+			ledger:destroy(id, "fake expired")
+			clearVisual(id)
+			if holder then
+				sendCarry(holder)
+			end
+			n += 1
+		end
+	end
+	return n
 end
 
 -- Every dropped item with its current world position (for retention and recovery).

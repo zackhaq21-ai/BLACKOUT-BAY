@@ -16,6 +16,9 @@ tools/build.sh        # writes build/BlackoutBay.rbxl
 ```
 Or run `rojo serve` and connect the Rojo Studio plugin to live-sync.
 
+## Fake bags and decoy cars
+At your job board (Job tab → Getaway kit) press **Fake Jewel**. Expected: 150 leaves the leader's stash and you are carrying what looks like an Aurora Jewel; other players' nameplates say you carry a Jewel. Deliver it at your table: "That bag was a fake." A second client who picks a dropped fake up is told it is fake at once. For a decoy car, roll out the Courier as well, put the fake in one trunk and the real bags in the other, and send the fake the loud way.
+
 ## Multiplayer test in Studio
 1. **Test** tab → **Clients and Servers** → set players to 2–5 → **Start**.
 2. In one client, open the job board and read the 4-letter **join code** on the crew card (top-right). In another client, type it in the board's **Crew code** box and press **Join crew**. The joiner is moved to the crew's pier.

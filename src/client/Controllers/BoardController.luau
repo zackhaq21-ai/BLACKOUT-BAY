@@ -204,6 +204,20 @@ local function build()
 	refs.leave = Make.ghostButton(right, "Leave", "Leave crew (keep what you carry)", function()
 		send("leave")
 	end)
+	-- Getaway kit: fake bags (approved deception). Decoy cars need no button: roll out a second car and
+	-- send it the loud way with a fake in the trunk.
+	Make.label(right, "KitHead", "Getaway kit", Theme.Body, Theme.Text, true)
+	Make.label(right, "KitNote", "Fake bags cost 150 from the leader's stash, max 3 out. They look real from a distance and are always light. Split real loot between two cars and send a decoy the exposed way.", Theme.Small, Theme.Muted)
+	local kit = Make.frame(right, "Kit", UDim2.new(1, 0, 0, Theme.MinButton), UDim2.new(), Theme.Panel, 1)
+	Make.list(kit, 4, true)
+	for i, mimic in ipairs({ "Trinket", "Relic", "Jewel", "Core", "Bundle" }) do
+		local b = Make.ghostButton(kit, "Fake" .. mimic, "Fake " .. (if mimic == "Bundle" then "stash" else mimic), function()
+			hideoutSend("fake", { mimic = mimic })
+		end)
+		b.Size = UDim2.new(0.2, -4, 1, 0)
+		b.TextSize = Theme.Small
+		b.LayoutOrder = i
+	end
 
 	-- Bottom: start / close
 	local bottom = Make.frame(jobTab, "Bottom", UDim2.new(1, 0, 0, Theme.MinButton), UDim2.new(0, 0, 1, -Theme.MinButton), Theme.Panel, 1)

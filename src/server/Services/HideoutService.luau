@@ -318,6 +318,39 @@ function HideoutService.handleRequest(player: Player, req)
 		S.Raid.startRaid(player, req.userId)
 	elseif action == "recover" then
 		S.Raid.startRecovery(player, req.raidId)
+	elseif action == "fake" then
+		local crew = S.Crew.crewOf(player)
+		local unit = crew and crew.unit
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not unit or not root or (root.Position - unit.board.Position).Magnitude > 16 then
+			Comms.toast(player, "Pack fake bags at your own job board.", "warn")
+			return
+		end
+		local mimic = tostring(req.mimic)
+		if not table.find(Config.Decoys.Mimics, mimic) then
+			return
+		end
+		-- the leader's stash pays (the hideout is the leader's)
+		local payer = crew.leader
+		local ok, err = Store.apply(payer.UserId, function(r)
+			return HideoutRecord.spend(r, Config.Decoys.FakeBagCost, os.time())
+		end)
+		if not ok then
+			Comms.toast(player, "Can't pack a fake: " .. tostring(err), "warn")
+			return
+		end
+		local minted, why = S.Loot.mintFake(player, mimic)
+		if not minted then
+			Store.apply(payer.UserId, function(r)
+				return HideoutRecord.deposit(r, Config.Decoys.FakeBagCost)
+			end)
+			Comms.toast(player, "Can't pack a fake: " .. tostring(why), "warn")
+		else
+			S.EventLog.money(Comms.key(payer), -Config.Decoys.FakeBagCost, "fake bag (" .. mimic .. ")", 0)
+			S.EventLog.crew(crew.id, Comms.name(player) .. " packed a fake " .. (if mimic == "Bundle" then "stash bundle" else Config.Economy.Loot[mimic].label))
+			Comms.toast(player, "Fake packed. It looks real from a distance; anyone outside your crew who grabs it will know. Fakes are light: a sprinting Core gives it away.", "good")
+		end
+		HideoutService.pushState(payer)
 	end
 end
 

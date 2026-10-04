@@ -36,6 +36,7 @@ Config.Economy = {
 		Jewel = { value = 1800, weight = "Light", label = "Aurora Jewel" },
 		Core = { value = 7500, weight = "Heavy", label = "Aurora Core" },
 		Bundle = { value = 0, weight = "Light", label = "Stash Bundle" }, -- value set per bundle when minted
+		Fake = { value = 0, weight = "Light", label = "Fake bag" }, -- decoy; label mimics another kind until revealed
 	},
 }
 
@@ -181,6 +182,15 @@ Config.Hideout = {
 	LaserStunSeconds = 3,
 	LaserSafeLockSeconds = 20,
 	AlarmHeat = 80, -- police heat for raiders when the alarm trips
+}
+
+-- Getaway deception (approved tactics): fake bags and decoy vehicles. Fakes never own real loot ids and are
+-- always light, so a sprinting "Aurora Core" is the tell; a rival who picks one up learns it is fake at once.
+Config.Decoys = {
+	FakeBagCost = 150, -- paid from the stash at the job board
+	MaxFakesPerCrew = 3, -- live fakes per crew at a time
+	Mimics = { "Trinket", "Relic", "Jewel", "Core", "Bundle" },
+	BundleMimicValue = 2500, -- the value a fake "Stash Bundle" pretends to carry
 }
 
 -- Rare-car weekly cycle (logic implemented; not yet in the player flow)

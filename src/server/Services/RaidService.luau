@@ -671,9 +671,12 @@ local function tickRetention(dt: number)
 					if tt >= HC.RetainSeconds then
 						state.retainTimers[entry.item.id] = nil
 						local value = entry.item.value
-						local ok = S.HideoutStore.apply(state.ownerUserId, function(r)
-							return HideoutRecord.retain(r, value)
-						end)
+						local ok = true
+						if value > 0 then
+							ok = S.HideoutStore.apply(state.ownerUserId, function(r)
+								return HideoutRecord.retain(r, value)
+							end)
+						end
 						if ok then
 							S.Loot.absorb(entry.item.id, "retained by " .. state.ownerName .. "'s defences")
 							for _, raid in pairs(raids) do

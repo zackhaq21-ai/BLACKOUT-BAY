@@ -121,6 +121,21 @@ function HideoutRecord.upgrade(r: Record, cost: number, maxTier: number, now: nu
 	return r, nil
 end
 
+-- Owner spends stash on preparation (fake bags). Blocked while a raid is active.
+function HideoutRecord.spend(r: Record, amount: number, now: number): (Record?, string?)
+	if raidActive(r, now) then
+		return nil, "raid in progress"
+	end
+	if amount <= 0 or amount ~= math.floor(amount) then
+		return nil, "bad amount"
+	end
+	if r.stash < amount then
+		return nil, "not enough in the stash"
+	end
+	r.stash -= amount
+	return r, nil
+end
+
 -- Owner banks stash into the wallet. Blocked while a raid is active or during the cooldown.
 -- Returns the amount removed from the stash (the caller credits the wallet with amount - fee).
 function HideoutRecord.bank(r: Record, amount: number, cooldown: number, now: number): (Record?, string?)
