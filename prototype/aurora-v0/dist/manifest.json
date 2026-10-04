@@ -1,0 +1,50 @@
+{
+  "name": "Blackout Bay: Aurora Exchange",
+  "players": "1-5",
+  "commerceEnabled": false,
+  "dataStoresEnabled": false,
+  "place": "BlackoutBay.rbxlx",
+  "bytes": 78682,
+  "files": [
+    {
+      "file": "src/shared/Config.luau",
+      "bytes": 1227,
+      "sha256": "b60bb54a123dbb5f21ca9f5bee8028519b1dac8eca7dc1b2df30126679066ee6"
+    },
+    {
+      "file": "src/shared/Rules.luau",
+      "bytes": 6011,
+      "sha256": "93367cf611c9d797b0253043ebce1f1be132d9390f49332d00bf286c34b1beb3"
+    },
+    {
+      "file": "src/server/CommerceService.luau",
+      "bytes": 3536,
+      "sha256": "8030b628752c12d3dd56f14ac1049490de52645b77e6709d119df6ae4356a2ce"
+    },
+    {
+      "file": "src/server/Main.server.luau",
+      "bytes": 25416,
+      "sha256": "070f819c8a84bf776b38a2839d9d657fead681234e8b1353282550eea0362a2b"
+    },
+    {
+      "file": "src/server/ProfileModel.luau",
+      "bytes": 1896,
+      "sha256": "07f2604cf9a56ebf0bc064668dbf1a538b6f152fbce582955dc8c4cc233e75e1"
+    },
+    {
+      "file": "src/server/ProfileService.luau",
+      "bytes": 3497,
+      "sha256": "d962713209a66107059a49eecfcda727f787ca883faaa7cd90dfd6b26d425242"
+    },
+    {
+      "file": "src/server/World.luau",
+      "bytes": 12698,
+      "sha256": "1db6cd6bcd358b2041db86cdded43eef07083a36a8b93be534bbacb338e16b8a"
+    },
+    {
+      "file": "src/client/HUD.client.luau",
+      "bytes": 15929,
+      "sha256": "8cadd412a64118e9895c0ec4d07c56eec07fa98da00603aace153fd8e95fc572"
+    }
+  ]
+}

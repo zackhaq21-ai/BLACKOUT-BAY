@@ -13,6 +13,7 @@ local SPECS = {
 	"../tests/road_graph.spec",
 	"../tests/stash_rules.spec",
 	"../tests/hideout_record.spec",
+	"../tests/profile_ops.spec",
 }
 
 local passed, failed = 0, 0

@@ -424,7 +424,8 @@ function HudController.init()
 	end)
 	Net.event("Jail").OnClientEvent:Connect(setJail)
 	Net.event("HideoutState").OnClientEvent:Connect(function(h)
-		refs.stash.Text = string.format("stash %s · tier %d", fmt(h.stash or 0), h.tier or 0)
+		refs.stash.Text = if (h.stash or 0) > 0 then string.format("stash %s AT RISK · tier %d", fmt(h.stash or 0), h.tier or 0) else string.format("stash 0 · tier %d", h.tier or 0)
+		refs.stash.TextColor3 = if (h.stash or 0) > 0 then Theme.Warn else Theme.Accent
 	end)
 	Net.event("RaidState").OnClientEvent:Connect(function(r)
 		if not r.active then

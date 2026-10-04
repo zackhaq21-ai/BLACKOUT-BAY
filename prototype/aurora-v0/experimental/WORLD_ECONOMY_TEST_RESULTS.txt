@@ -1,0 +1,43 @@
+GLASSHOUSE EXPERIMENTAL WORLD ECONOMY - 2026-10-03
+Environment: existing official portable Windows Luau CLI, local workspace only.
+Command: glasshouse\tools\luau\luau.exe glasshouse\experimental\WorldEconomy.spec.luau
+Exit code: 0
+
+PASS initial money, loot, permanent cosmetics and two-seat car invariants
+PASS 2m plus 2m contributions debit earned wallets into 4m escrow
+PASS idempotent command replay and mismatched duplicate rejection
+PASS optimistic revisions reject stale racing updates and wrong world
+PASS defeat freezes escrow; late contributions reject; payout occurs once
+PASS defeat requires adjudication and cannot drop another container's loot
+PASS physical split creates exact portions in separate vehicles; parent retires
+PASS invalid split never creates children; duplicate loot transfer rejects atomically
+PASS taking unowned physical loot requires server transfer adjudication
+PASS six shield and six laser tiers consume only earned balances
+PASS offline raid snapshots defenses; reconnect cannot replace reserved stash
+PASS raid transfers exactly supplied loot IDs; no implicit wipe
+PASS all supplied stash loot may be taken without invented protected fraction
+PASS defenses retain defeated intruder's explicit dropped earned loot
+PASS invalid raid outcome leaves lease and every item intact
+PASS rare original car heist completes once per world cycle, owned individually
+PASS car break-in requires continuous validation and full 120 seconds
+PASS same car may be re-stolen without creating another original heist
+PASS simultaneous thieves cannot both win; drive-away invalidates theft
+PASS weekly reset revokes owner, expires theft, returns same car and reopens once
+PASS server downtime skips elapsed cycles without accumulating rare cars
+PASS thief disconnect interrupts break-in; personal owner remains unchanged
+PASS stolen-loot recovery transfers the exact original ID without duplication
+PASS owner return log is bounded and contains each retained recent result
+PASS audit detects lost paid cosmetics and currency/loot duplication
+PASS 100 alternating physical transfers conserve loot and reject stale pickup replay
+WORLD_ECONOMY_TESTS: 26 passed, 0 failed
+
+Static analysis command:
+glasshouse\tools\luau\luau-analyze.exe glasshouse\experimental\WorldEconomy.luau glasshouse\experimental\WorldEconomy.spec.luau
+Exit code: 0; no diagnostics.
+
+Earlier compiler check (before adding disconnect/recovery/log tests):
+luau-compile --null WorldEconomy.luau WorldEconomy.spec.luau
+Exit code: 0. Final source was subsequently executed and statically analyzed above.
+
+These are pure state-model tests. No Roblox account, store, server, network,
+multiplayer session, defense physics, or live purchase was accessed by this suite.

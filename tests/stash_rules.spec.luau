@@ -2,13 +2,14 @@ local StashRules = require("../src/shared/Core/StashRules")
 
 return function(t)
 	local cfg = {
-		ProtectedFloor = 1000, ExposedFraction = 0.35, MaxExposedPerRaid = 15000, BankFeeFraction = 0.1, BundleValue = 2500,
+		FullExposure = true, BankFeeFraction = 0.1, BundleValue = 2500,
 		Tiers = { [1] = { cost = 1500, unlock = "Lock", desc = "" }, [2] = { cost = 3000, unlock = "Alarm", desc = "" }, [3] = { cost = 5000, unlock = "Shield", desc = "" } },
 		SafeCrackSeconds = { [0] = 12, [1] = 25, [2] = 25, [3] = 25 }, CrackAssistFactor = 0.55, BreakerSeconds = { [3] = 18 },
 	}
-	t.test("exposed amount respects floor, fraction and cap", function()
-		t.eq(StashRules.exposed(cfg, 0), 0); t.eq(StashRules.exposed(cfg, 1000), 0)
-		t.eq(StashRules.exposed(cfg, 11000), 3500); t.eq(StashRules.exposed(cfg, 1000000), 15000)
+	t.test("a raid exposes the full earned stash: no floor, no fraction, no cap", function()
+		t.eq(StashRules.exposed(cfg, 0), 0); t.eq(StashRules.exposed(cfg, 1000), 1000)
+		t.eq(StashRules.exposed(cfg, 11000), 11000); t.eq(StashRules.exposed(cfg, 1000000), 1000000)
+		t.eq(StashRules.exposed(cfg, 12.9), 12)
 	end)
 	t.test("bundles never exceed the bundle value and sum to the amount", function()
 		local b = StashRules.bundles(cfg, 6100)

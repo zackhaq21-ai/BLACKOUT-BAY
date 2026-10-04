@@ -30,6 +30,7 @@ local listeners = {}
 local alarmOrigin = nil
 local camerasWereActive = nil
 local lastNoiseAt = {} -- key -> time (throttle noise reports from held prompts)
+local frozen = false -- engine tests freeze guards and cameras to isolate rules
 
 local function now()
 	return os.clock()
@@ -645,6 +646,13 @@ function SecurityService.onCaseCutHold(player: Player, prompt: ProximityPrompt, 
 	SecurityService.noiseAt(part.Position, 30, player, "glass cutting", 0.35, dt)
 end
 
+function SecurityService.setFrozen(on: boolean)
+	frozen = on
+	for _, g in ipairs(guards) do
+		g.humanoid.WalkSpeed = if on then 0 else Config.Museum.GuardWalkSpeed
+	end
+end
+
 function SecurityService.isInside(player: Player): boolean
 	local pos = playerPos(player)
 	return pos ~= nil and insideMuseum(pos)
@@ -701,10 +709,12 @@ function SecurityService.start()
 			local dt = t - last
 			last = t
 			security:step(dt, t)
-			for _, g in ipairs(guards) do
-				g:tick(dt, t, SecurityService.vision)
+			if not frozen then
+				for _, g in ipairs(guards) do
+					g:tick(dt, t, SecurityService.vision)
+				end
+				tickCameras(dt, t)
 			end
-			tickCameras(dt, t)
 		end
 	end)
 	task.spawn(function()

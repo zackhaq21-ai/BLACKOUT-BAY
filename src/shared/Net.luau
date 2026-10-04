@@ -24,6 +24,7 @@ Net.Events = {
 	"HideoutState", -- {stash, tier, unread, reports?, raidActive}
 	"RaidTargets", -- {targets}
 	"RaidState", -- raider/defender raid snapshot or {active=false}
+	"ProfileState", -- {xp, wins, entitlements, equipped, catalog, commerce}
 	-- client -> server
 	"CrewRequest", -- {action, ...}
 	"MissionRequest", -- {action, ...}
@@ -32,6 +33,7 @@ Net.Events = {
 	"SetSneak", -- bool
 	"SetSprint", -- bool
 	"HideoutRequest", -- {action, ...}: upgrade, bank, markRead, listTargets, startRaid, crackSafe
+	"ProfileRequest", -- {action, item}: equip, buy, refresh
 }
 
 Net.Functions = {

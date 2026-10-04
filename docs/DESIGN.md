@@ -51,17 +51,26 @@ Payout: the leader sets integer-percent shares before the job (equal by default)
 
 **Decoys / split loot**: real loot can be divided between vehicles today (two trunks). Fake bags and decoy vehicles are not implemented yet (see STATUS).
 
-## Hideouts: stash, defences, raids (milestone 3)
-**Prototype rules, explicit and configurable in `Config.Hideout`. Neither full wipes nor fully protected banking were approved; these are the labelled assumptions until the owner decides.**
+## Hideouts: stash, defences, raids (milestone 3, rule revised in the reconciliation review)
+**Owner decision (2026-10-04): high stakes.** A cracked safe exposes the **entire earned stash**: no protected floor, no fraction, no per-raid cap. This replaces the earlier labelled assumption (floor 1,000 / 35% / 15,000 cap), which has been removed from the code. It applies to the earned stash only: permanent Robux cosmetics, paid entitlements, XP and earned unlocks are never touched by a raid, and nothing else in the profile is deleted.
 
-- **Where money lives.** Job payouts land in the owner's hideout **stash** (`PayoutsToStash = true`). The stash is what everyone can see (nameplates and the stash sign show it) and what raids take. **Banking** moves stash to the wallet for a 10% fee with a 2-minute cooldown; the wallet is never raided. Upgrades are paid from the stash.
-- **How much a raid takes.** `exposed = min(15,000, 35% × (stash − 1,000))`. The first 1,000 is a protected floor so a wiped player can still rebuild; the cap keeps whales raidable without one raid deleting them. A cracked safe mints the exposed amount as physical bundles (≤ 2,500 each) on the floor: they still have to be carried home, and the owner's defences retain any bag left inside for 8 s.
-- **Six tiers** (1,500 → 18,000): lock, alarm, bay shield + breaker, laser traps, reinforced shield (pier door barred), sweeping lasers (a trip also locks the safe 20 s). Each tier changes the attacker's problem (breaker outside vs. pier door at the back; jump the low lasers, never the high) without making entry impossible.
-- **Raidable while offline.** Hideout records live in their own DataStore (`GlasshouseHideouts`), separate from profiles, so a raider on any server can act on an offline owner's record. Online owners who lead a crew are raided at their own pier (defences are built there); everyone else is raided at the **Breakwater Lockup**, a seventh unit where the target's defences are instantiated for the raid.
-- **Concurrency.** Every mutation is a pure `HideoutRecord` transform applied inside `UpdateAsync` on the stored value: claiming the exclusive raid lock (expires after 7 min; cooldown 10 min after a raid), cracking (debits the stored stash, never a cached copy), retention, release + report, deposit, bank, upgrade. Two servers or two crews cannot hold the lock at once; the owner cannot bank or upgrade mid-raid; a reconnecting owner reads the same record. All of this is unit-tested without Roblox. With no DataStore (offline Studio) the same API runs on an in-memory table for that server.
-- **Raid report** on return: who (and crew size), when, how entry happened, which defences triggered, lost vs. retained, and a recovery window (20 min) that a later milestone's recovery mission will use.
-- **Defender play.** Online owners get the alarm, a live raid HUD, and can pick bags back up (or just let the 8 s retention work). The alarm gives raiders police heat. There is no player combat yet; that is the biggest gap for "defeat intruders".
-- **ASSUMPTIONS.** Exposed formula and tier costs; retention of *any* bag left inside (including a raider's museum loot); raids only target crew leaders' live units; one lockup raid at a time per server; a unit shared by more than one crew shows the first leader's defences.
+- **Where money lives.** Job payouts land in the owner's hideout **stash** (`PayoutsToStash = true`). Nameplates, the stash sign, the HUD ("AT RISK") and the Hideout tab all say the whole stash is on the table.
+- **Protected progression.** Banking moves stash to the raid-proof wallet for a 10% fee with a 2-minute cooldown (`BankingEnabled`, a separate switch the owner can turn off). Rebuilding otherwise happens through jobs.
+- **Six tiers** (1,500 → 18,000): lock, alarm, bay shield + breaker, laser traps, reinforced shield (pier door barred), sweeping lasers (a trip also locks the safe 20 s). Each tier changes the attacker's problem without making entry impossible. Low lasers are jumped, high ones walked under.
+- **Raidable while offline.** Records live in their own DataStore so a raider on any server can act on an offline owner's record. Online crew leaders are raided at their own pier; everyone else at the Breakwater Lockup.
+- **Concurrency and no duplication.** Every mutation is a pure `HideoutRecord` transform applied inside `UpdateAsync` on the stored value: exclusive raid lock (7-minute expiry, 10-minute cooldown after a raid), **one crack per lock** (retained bags cannot be re-stolen in the same raid), atomic debit of the stored stash, retention, release + report. Stolen value is minted once as ledger bundles; a bundle is delivered once. All of it is unit-tested without Roblox.
+- **Raid report** on return: who (and crew size), when, how entry happened, which defences triggered, lost vs. retained, and a 20-minute recovery window kept for the later stolen-loot recovery mission.
+- **Defender play.** Live alarm and raid HUD, picking bags back up, 8-second retention into the safe, police heat for raiders. No player combat yet.
+- **Remaining assumptions.** Retention of *any* bag left inside; raids only target crew leaders' live units; one lockup raid at a time per server.
+
+## Corrections carried over from the prototype thread (docs/ROADMAP.md in `prototype/aurora-v0`)
+- The rare car is owned by the **individual thief**, never automatically by the assisting crew; ownership survives crew changes for the rest of the weekly cycle. `RareCarCycle` already models the individual owner.
+- A crew member may **leak a hideout**, enabling stash raids and a comeback. (The raid board currently lists hideouts by visible wealth; leaking as a deliberate act is a later milestone.)
+- Blackouts need a server-bounded duration and cooldown; restore every affected system after host disconnect or restart.
+- Recovery must transfer the **same** loot, never mint another copy. The bundle ids minted in a raid are the ids a recovery would move.
+- NPC police must not track omnisciently; solo must always keep an achievable escape. Human police switch-over must be safe.
+- Deferred, per the owner: cargo-ship heists, framing rivals, forced loot-vs-teammate choice. Canceled: the weekly rare gun.
+- Open decisions still owed: weekly boundary/timezone and persistent server-world routing for the rare car; NPC difficulty selection method; bounty claim attribution on disconnect.
 
 ## Police (NPC fallback this milestone)
 - Heat per player (0–300; levels 1–3) from the alarm (120), smashing doors, being seen carrying loot (60/10 s), being rammed (40). Decays 2.5/s only after 20 s unseen. Vehicles seen with a wanted driver are recognised for 90 s.

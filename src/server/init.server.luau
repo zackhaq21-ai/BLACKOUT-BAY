@@ -16,7 +16,7 @@ Net.createAll()
 local services = {}
 local ctx = { world = world, services = services, config = Config }
 
-local ORDER = { "EventLog", "Data", "Economy", "Movement", "HideoutStore", "Raid", "Hideout", "Crew", "Loot", "Security", "Mission", "Vehicle", "Police", "Interaction" }
+local ORDER = { "EventLog", "Data", "Economy", "Commerce", "Cosmetics", "Movement", "HideoutStore", "Raid", "Hideout", "Crew", "Loot", "Security", "Mission", "Vehicle", "Police", "Interaction" }
 for _, name in ipairs(ORDER) do
 	services[name] = require(script.Services[if name == "HideoutStore" then name else name .. "Service"])
 end
@@ -26,5 +26,7 @@ end
 for _, name in ipairs(ORDER) do
 	services[name].start()
 end
+require(script.ServerContext).ctx = ctx
+script:SetAttribute("Ready", true)
 
 print(string.format("[GLASSHOUSE] %s ready in %.2f s (%d parts)", Config.BuildTag, os.clock() - started, #world.root:GetDescendants()))

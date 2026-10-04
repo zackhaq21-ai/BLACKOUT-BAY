@@ -109,7 +109,7 @@ function PoliceService.placeInCell(player: Player)
 	local char = player.Character
 	if char and char.PrimaryPart then
 		local cell = station.cellSpawns[math.random(1, #station.cellSpawns)]
-		char:PivotTo(cell)
+		PoliceService.ctx.services.Movement.relocate(player, cell)
 	end
 end
 
@@ -139,7 +139,7 @@ function PoliceService.release(player: Player, how: string)
 	PoliceService.ctx.services.Mission.memberReleased(player)
 	local char = player.Character
 	if char and char.PrimaryPart then
-		char:PivotTo(station.entrance)
+		PoliceService.ctx.services.Movement.relocate(player, station.entrance)
 	end
 end
 

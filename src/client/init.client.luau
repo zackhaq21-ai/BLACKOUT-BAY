@@ -1,5 +1,5 @@
 --!nonstrict
--- GLASSHOUSE client entry point.
+-- BLACKOUT BAY client entry point.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -38,4 +38,4 @@ NameplateController.init()
 AudioController.init(HudController)
 Net.event("MissionRequest"):FireServer({ action = "refresh" })
 Net.event("CrewRequest"):FireServer({ action = "refresh" })
-HudController.toast("Welcome to Glasshouse. Your pier is behind you; the job board is on the back wall.", "info")
+HudController.toast("Welcome to Blackout Bay. Your pier is behind you; the job board is on the back wall.", "info")

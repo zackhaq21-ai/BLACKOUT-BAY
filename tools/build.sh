@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p build
-rojo build default.project.json -o build/Glasshouse.rbxl
+rojo build default.project.json -o build/BlackoutBay.rbxl
+rojo build engine-test.project.json -o build/BlackoutBay-EngineTest.rbxl
 rojo sourcemap default.project.json -o sourcemap.json
-echo "Built build/Glasshouse.rbxl"
+echo "Built build/BlackoutBay.rbxl and build/BlackoutBay-EngineTest.rbxl"

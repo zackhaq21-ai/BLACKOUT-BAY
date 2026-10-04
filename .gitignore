@@ -1,5 +1,7 @@
 build/*
-!build/Glasshouse.rbxl
+!build/BlackoutBay.rbxl
+!build/BlackoutBay-EngineTest.rbxl
+tests/engine/runner.generated.luau
 sourcemap.json
 *.rbxl.lock
 tools/globalTypes.d.luau

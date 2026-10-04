@@ -37,7 +37,7 @@ local function buildUnit(parent: Folder, h, index: number)
 	Builder.box(m, x2 - 7, 0, pz, 14, ROOF_H, 1, { name = "Partition", material = Enum.Material.WoodPlanks, color = Palette.WarmWood })
 	-- Living space: prep board on the back wall, delivery table centre, stash sign, bunk, warm light
 	local board = Builder.box(m, h.x - 10, 3, z2 - 1.6, 14, 8, 1, { name = "PrepBoard", material = Enum.Material.SmoothPlastic, color = Palette.Night })
-	Builder.label(board, "JOB BOARD\nAurora Exchange", Enum.NormalId.Front, Palette.SeaGlass)
+	Builder.label(board, "BLACKOUT BAY\nJOB BOARD · Aurora Exchange", Enum.NormalId.Front, Palette.SeaGlass)
 	local table_ = Builder.box(m, h.x, 1, h.z + 16, 10, 3, 5, { name = "DeliveryTable", material = Enum.Material.Wood, color = Palette.WarmWood })
 	Builder.label(table_, "DROP THE HAUL HERE", Enum.NormalId.Top, Palette.PaleStone)
 	local stash = Builder.box(m, h.x + 12, 3, z2 - 1.6, 12, 6, 1, { name = "StashSign", material = Enum.Material.SmoothPlastic, color = Palette.Night })

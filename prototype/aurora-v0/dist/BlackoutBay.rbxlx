@@ -1,0 +1,1302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Workspace" referent="RBX17"><Properties><string name="Name">Workspace</string><float name="Gravity">196.2</float></Properties><Item class="Model" referent="RBX16"><Properties><string name="Name">GlasshouseWorld</string></Properties><Item class="Part" referent="RBX15"><Properties><string name="Name">PRESS PLAY — GLASSHOUSE BUILDS HERE</string><bool name="Anchored">true</bool><Vector3 name="size"><X>120</X><Y>1</Y><Z>120</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Color3 name="Color"><R>0.08</R><G>0.16</G><B>0.21</B></Color3></Properties></Item></Item></Item><Item class="ReplicatedStorage" referent="RBX4"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX3"><Properties><string name="Name">Glasshouse</string></Properties><Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">Config</string><ProtectedString name="Source">-- Native Roblox prototype. No external assets, plugins, or live commerce required.
+return {
+	Title = &quot;BLACKOUT BAY&quot;,
+	Subtitle = &quot;THE AURORA EXCHANGE&quot;,
+	MaxPlayers = 5,
+	RunSeconds = 480,
+	InteractionDistance = 12,
+	DataStoreEnabled = false, -- Local play uses memory. Never enable Studio production-store access.
+	DataStoreName = &quot;Glasshouse_Prototype_v1&quot;,
+	CommerceEnabled = false, -- Requires a separate reviewed release; zero IDs cannot purchase.
+	Catalog = {
+		{Id = &quot;mint&quot;, Name = &quot;Mint courier&quot;, Kind = &quot;Suit&quot;, EarnedXP = 0, PassId = 0, ProductId = 0, Color = {75, 223, 190}},
+		{Id = &quot;amber&quot;, Name = &quot;Amber operator&quot;, Kind = &quot;Suit&quot;, EarnedXP = 200, PassId = 0, ProductId = 0, Color = {255, 187, 89}},
+		{Id = &quot;violet&quot;, Name = &quot;Violet ghost&quot;, Kind = &quot;Suit&quot;, EarnedXP = 600, PassId = 0, ProductId = 0, Color = {175, 142, 255}},
+		{Id = &quot;prism&quot;, Name = &quot;Prism suit&quot;, Kind = &quot;Suit&quot;, EarnedXP = false, PassId = 0, ProductId = 0, Color = {124, 199, 255}},
+		{Id = &quot;moonlamp&quot;, Name = &quot;Moon lamp&quot;, Kind = &quot;Decor&quot;, EarnedXP = 350, PassId = 0, ProductId = 0, Color = {242, 221, 159}},
+		{Id = &quot;auroraplant&quot;, Name = &quot;Aurora sculpture&quot;, Kind = &quot;Decor&quot;, EarnedXP = false, PassId = 0, ProductId = 0, Color = {238, 150, 221}},
+	},
+}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2"><Properties><string name="Name">Rules</string><ProtectedString name="Source">-- Pure deterministic gameplay model: also runs in the standalone Luau test runner.
+local Rules = {}
+local roles = {&quot;Coordinator&quot;, &quot;Signal specialist&quot;, &quot;Courier&quot;, &quot;Lookout&quot;, &quot;Pathfinder&quot;}
+local entrances = {&quot;Exhibit&quot;, &quot;Service&quot;, &quot;Skybridge&quot;}
+local vaults = {&quot;West&quot;, &quot;North&quot;, &quot;East&quot;}
+
+function Rules.random(seed)
+	local value = math.floor(math.abs(seed)) % 2147483646 + 1
+	return function(maximum)
+		value = (value * 16807) % 2147483647
+		return (value % maximum) + 1
+	end
+end
+
+function Rules.required(count)
+	return math.min(4, 1 + math.ceil(math.clamp(count, 1, 5) / 2))
+end
+
+function Rules.roles(members)
+	local ids = {}
+	for id in pairs(members) do table.insert(ids, id) end
+	table.sort(ids)
+	for i, id in ipairs(ids) do members[id].role = #ids == 1 and &quot;Solo / all tools&quot; or roles[i] end
+	return ids
+end
+
+function Rules.new(ids, seed, mode, day)
+	assert(#ids &gt;= 1 and #ids &lt;= 5, &quot;Crew must have 1 to 5 players&quot;)
+	local rng = Rules.random(seed)
+	local s = {
+		status = &quot;Active&quot;, seed = seed, mode = mode, day = day,
+		members = {}, needed = Rules.required(#ids), signals = {}, signalCount = 0,
+		vault = vaults[rng(3)], watchedEntrance = entrances[rng(3)], patrolOffset = rng(4),
+		heat = 0, alarmed = false, timeLeft = 480, elapsed = 0,
+		powerOff = false, vaultOpen = false, vaultForced = false,
+		curator = &quot;Waiting&quot;, core = &quot;Vault&quot;, carrier = nil, bonus = 0,
+		entrancesUsed = {}, captures = 0, result = nil, credited = false,
+	}
+	for _, id in ipairs(ids) do
+		assert(s.members[id] == nil, &quot;Duplicate crew member&quot;)
+		s.members[id] = {role = &quot;&quot;, entered = false, captured = false, escaped = false, bonus = 0, stasis = 3}
+	end
+	Rules.roles(s.members)
+	return s
+end
+
+function Rules.addHeat(s, amount)
+	if s.status ~= &quot;Active&quot; then return end
+	s.heat = math.clamp(s.heat + amount, 0, 100)
+	if s.heat &gt;= 100 and not s.alarmed then
+		s.alarmed = true
+		s.timeLeft = math.min(s.timeLeft, 60)
+	end
+end
+
+function Rules.remove(s, id)
+	if not s.members[id] then return false end
+	local dropped = s.carrier == id
+	if dropped then s.carrier = nil; s.core = &quot;Dropped&quot; end
+	s.members[id] = nil
+	local ids = Rules.roles(s.members)
+	s.needed = math.min(s.needed, Rules.required(#ids))
+	if #ids == 0 and s.status == &quot;Active&quot; then
+		s.status = &quot;Failed&quot;; s.result = &quot;Crew disconnected&quot;
+	end
+	return dropped
+end
+
+function Rules.enter(s, id, entrance)
+	local m = s.members[id]
+	if s.status ~= &quot;Active&quot; or not m or m.captured or m.entered then return false end
+	if not table.find(entrances, entrance) then return false end
+	m.entered = true; s.entrancesUsed[entrance] = true
+	if entrance == s.watchedEntrance then Rules.addHeat(s, 12) end
+	return true
+end
+
+function Rules.available(s, id)
+	local m = s.members[id]
+	return s.status == &quot;Active&quot; and m ~= nil and m.entered and not m.captured and not m.escaped
+end
+
+function Rules.signal(s, id, index)
+	if not Rules.available(s, id) or index &lt; 1 or index &gt; 4 or index % 1 ~= 0 then return false end
+	if s.signals[index] or s.signalCount &gt;= s.needed then return false end
+	s.signals[index] = true; s.signalCount += 1
+	return true
+end
+
+function Rules.power(s, id)
+	if not Rules.available(s, id) or s.powerOff then return false end
+	s.powerOff = true
+	return true
+end
+
+function Rules.curator(s, id, choice)
+	if not Rules.available(s, id) then return false end
+	if choice == &quot;Release&quot; and s.curator ~= &quot;Released&quot; then
+		s.curator = &quot;Released&quot;; Rules.addHeat(s, -15); return true
+	elseif choice == &quot;Capture&quot; and s.curator == &quot;Waiting&quot; then
+		s.curator = &quot;Captured&quot;
+		if s.signalCount &lt; s.needed then
+			for i = 1, 4 do
+				if not s.signals[i] then s.signals[i] = true; s.signalCount += 1; break end
+			end
+		end
+		Rules.addHeat(s, 25); return true
+	end
+	return false
+end
+
+function Rules.vault(s, id, forced)
+	if not Rules.available(s, id) or s.vaultOpen then return false end
+	if not forced and (s.signalCount &lt; s.needed or not s.powerOff) then return false end
+	s.vaultOpen = true; s.vaultForced = forced
+	if forced then Rules.addHeat(s, 65) end
+	return true
+end
+
+function Rules.takeCore(s, id)
+	if not Rules.available(s, id) or not s.vaultOpen then return false end
+	if s.core ~= &quot;Vault&quot; and s.core ~= &quot;Dropped&quot; then return false end
+	s.core = &quot;Carried&quot;; s.carrier = id
+	Rules.addHeat(s, 8)
+	return true
+end
+
+function Rules.capture(s, id)
+	if not Rules.available(s, id) then return false end
+	local m = s.members[id]
+	m.captured = true; m.bonus = 0; s.captures += 1
+	if s.carrier == id then s.carrier = nil; s.core = &quot;Dropped&quot; end
+	Rules.addHeat(s, 10)
+	return true
+end
+
+function Rules.recover(s, id)
+	local m = s.members[id]
+	if s.status ~= &quot;Active&quot; or not m or not m.captured then return false end
+	m.captured = false; m.entered = false
+	s.timeLeft = math.max(0, s.timeLeft - 15)
+	return true
+end
+
+function Rules.canExit(s, route)
+	if route == &quot;Tram&quot; then return s.heat &lt; 75 end
+	if route == &quot;Canal&quot; then return s.curator == &quot;Released&quot; end
+	return route == &quot;Tunnel&quot; -- Always available, including solo and full lockdown.
+end
+
+function Rules.extract(s, id, route, nearby)
+	if not Rules.available(s, id) or s.carrier ~= id or not Rules.canExit(s, route) then return false end
+	s.status = &quot;Success&quot;; s.exit = route
+	local count = 0
+	for memberId, m in pairs(s.members) do
+		m.escaped = nearby[memberId] == true and m.entered and not m.captured
+		if m.escaped then count += 1 end
+	end
+	s.result = s.alarmed and &quot;LAST LIGHT&quot; or (s.vaultForced and &quot;SMASH &amp; DASH&quot; or (s.captures == 0 and s.heat &lt; 35 and &quot;GHOST CREW&quot; or &quot;NARROW ESCAPE&quot;))
+	s.escapedCount = count
+	return true
+end
+
+function Rules.tick(s, dt)
+	if s.status ~= &quot;Active&quot; then return end
+	s.elapsed += dt; s.timeLeft = math.max(0, s.timeLeft - dt)
+	if s.timeLeft &lt;= 0 then s.status = &quot;Failed&quot;; s.result = &quot;THE LIGHTS WENT OUT&quot; end
+end
+
+function Rules.reward(s, id)
+	local m = s.members[id]
+	if not m or s.status == &quot;Active&quot; then return 0 end
+	if s.status == &quot;Failed&quot; or not m.escaped then return 25 end
+	return 100 + m.bonus * 20 + (s.result == &quot;GHOST CREW&quot; and 50 or 0) + (s.curator == &quot;Released&quot; and 25 or 0)
+end
+
+return Rules
+</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX11"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX10"><Properties><string name="Name">GlasshouseServer</string></Properties><Item class="ModuleScript" referent="RBX5"><Properties><string name="Name">CommerceService</string><ProtectedString name="Source">-- REVIEW SCAFFOLD ONLY. Config and all IDs ship disabled. No live purchase is configured.
+-- Permanent cosmetics should use PassId (one-time ownership), not repeatable products.
+local MarketplaceService = game:GetService(&quot;MarketplaceService&quot;)
+local Players = game:GetService(&quot;Players&quot;)
+local RunService = game:GetService(&quot;RunService&quot;)
+local Config = require(game.ReplicatedStorage.Glasshouse.Config)
+local Profiles = require(script.Parent.ProfileService)
+local Commerce = {}
+local passMap, productMap = {}, {}
+for _, item in ipairs(Config.Catalog) do
+	if item.PassId &gt; 0 then assert(not passMap[item.PassId], &quot;Duplicate pass ID&quot;); passMap[item.PassId] = item end
+	if item.ProductId &gt; 0 then assert(not productMap[item.ProductId], &quot;Duplicate product ID&quot;); productMap[item.ProductId] = item end
+end
+
+function Commerce.enabled()
+	return Config.CommerceEnabled and Config.DataStoreEnabled and not RunService:IsStudio()
+end
+
+function Commerce.reconcile(player)
+	if not Commerce.enabled() or not Profiles.canCommerce(player.UserId) then return end
+	for passId, item in pairs(passMap) do
+		local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, passId)
+		if ok and owns then Profiles.queue(player.UserId, {kind = &quot;Pass&quot;, item = item.Id}) end
+	end
+end
+
+function Commerce.prompt(player, itemId)
+	if not Commerce.enabled() or not Profiles.canCommerce(player.UserId) then return false, &quot;Shop preview only&quot; end
+	local item
+	for _, candidate in ipairs(Config.Catalog) do if candidate.Id == itemId then item = candidate end end
+	if not item or item.PassId &lt;= 0 then return false, &quot;Unavailable&quot; end
+	if Profiles.get(player).entitlements[item.Id] then return false, &quot;Already owned&quot; end
+	local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, item.PassId)
+	if not ok then return false, &quot;Ownership check unavailable&quot; end
+	if owns then Profiles.queue(player.UserId, {kind = &quot;Pass&quot;, item = item.Id}); return false, &quot;Already owned&quot; end
+	-- The client shows Roblox's current price; Roblox's final confirmation is authoritative.
+	local infoOK, info = pcall(MarketplaceService.GetProductInfoAsync, MarketplaceService, item.PassId, Enum.InfoType.GamePass)
+	if not infoOK or not info.IsForSale then return false, &quot;Not for sale&quot; end
+	local prompted = pcall(MarketplaceService.PromptGamePassPurchase, MarketplaceService, player, item.PassId)
+	return prompted, prompted and &quot;Roblox confirmation opened&quot; or &quot;Shop unavailable&quot;
+end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, _purchased)
+	if not Commerce.enabled() or not passMap[passId] then return end
+	-- Re-check the Roblox ownership service. Never trust the client to grant an item.
+	Commerce.reconcile(player)
+end)
+
+MarketplaceService.ProcessReceipt = function(receipt)
+	local deferred = Enum.ProductPurchaseDecision.NotProcessedYet
+	if not Commerce.enabled() then return deferred end
+	local item = productMap[receipt.ProductId]
+	local player = Players:GetPlayerByUserId(receipt.PlayerId)
+	if not item or not player or not Profiles.canPersist(player.UserId) then return deferred end
+	if type(receipt.PurchaseId) ~= &quot;string&quot; or #receipt.PurchaseId &gt; 160 then return deferred end
+	-- Same key, atomic grant + durable receipt ledger, callback safe to re-run.
+	local saved = Profiles.transaction(player.UserId, {kind = &quot;Receipt&quot;, receipt = receipt.PurchaseId, item = item.Id})
+	if saved then return Enum.ProductPurchaseDecision.PurchaseGranted end
+	return deferred
+end
+return Commerce
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX6"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService(&quot;Players&quot;)
+local ReplicatedStorage = game:GetService(&quot;ReplicatedStorage&quot;)
+local RunService = game:GetService(&quot;RunService&quot;)
+local HttpService = game:GetService(&quot;HttpService&quot;)
+local Lighting = game:GetService(&quot;Lighting&quot;)
+local Shared = ReplicatedStorage:WaitForChild(&quot;Glasshouse&quot;)
+local Config = require(Shared.Config)
+local Rules = require(Shared.Rules)
+local Profiles = require(script.Parent.ProfileService)
+local Commerce = require(script.Parent.CommerceService)
+local World = require(script.Parent.World)
+
+local net = Instance.new(&quot;Folder&quot;); net.Name = &quot;Net&quot;; net.Parent = Shared
+local stateEvent = Instance.new(&quot;RemoteEvent&quot;); stateEvent.Name = &quot;State&quot;; stateEvent.Parent = net
+local command = Instance.new(&quot;RemoteEvent&quot;); command.Name = &quot;Command&quot;; command.Parent = net
+local toastEvent = Instance.new(&quot;RemoteEvent&quot;); toastEvent.Name = &quot;Toast&quot;; toastEvent.Parent = net
+local s, w
+local runId, finishedAt = &quot;&quot;, 0
+local ready, jobs, lastCommand, lastPrompt, exposure, stasisAt, motion, grace, lootTaken = {}, {}, {}, {}, {}, {}, {}, {}, {}
+local peers = {}
+local equipAt = {}
+local teleportRevision = {}
+local pulse, patrolTick, runCounter = 0, 0, 0
+
+Lighting.ClockTime = 18.4; Lighting.Brightness = 2
+Lighting.Ambient = Color3.fromRGB(105, 125, 151); Lighting.OutdoorAmbient = Color3.fromRGB(135, 147, 167)
+Lighting.FogColor = Color3.fromRGB(101, 150, 170); Lighting.FogStart = 280; Lighting.FogEnd = 700
+
+local function notify(player, message)
+	if player and player.Parent == Players then toastEvent:FireClient(player, message) end
+end
+
+-- SERVER_STARTUP follows the world binding functions.
+local function announce(message) toastEvent:FireAllClients(message) end
+local function rootOf(player)
+	local char = player.Character
+	local root = char and char:FindFirstChild(&quot;HumanoidRootPart&quot;)
+	local hum = char and char:FindFirstChildOfClass(&quot;Humanoid&quot;)
+	if not root or not hum or hum.Health &lt;= 0 then return nil end
+	return root, hum
+end
+local function crew()
+	local list = Players:GetPlayers(); table.sort(list, function(a, b) return a.UserId &lt; b.UserId end)
+	return list
+end
+local function host() return crew()[1] end
+local function teleport(player, position)
+	local root, hum = rootOf(player)
+	if root then
+		local id = player.UserId
+		teleportRevision[id] = (teleportRevision[id] or 0) + 1
+		local revision = teleportRevision[id]
+		local seat = hum.SeatPart
+		hum.Sit = false
+		-- Detach only this character's seat weld before moving its assembly.
+		local weld = seat and seat:FindFirstChild(&quot;SeatWeld&quot;)
+		if weld and weld:IsA(&quot;Weld&quot;) and weld.Part1 and weld.Part1:IsDescendantOf(player.Character) then weld:Destroy() end
+		-- Hold authority briefly so an in-flight client physics update cannot undo a
+		-- capture, entry or retry relocation. Normal character ownership then resumes.
+		if root:CanSetNetworkOwnership() then root:SetNetworkOwner(nil) end
+		root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero
+		player.Character:PivotTo(CFrame.new(position))
+		grace[id] = os.clock() + 2; motion[id] = {position = position, time = os.clock()}
+		task.delay(0.5, function()
+			-- Do not give a server-owned car to this client if it seated during the
+			-- relocation window; restore the character once it leaves that seat.
+			while teleportRevision[id] == revision and root.Parent and player.Character == root.Parent and hum.SeatPart do task.wait(0.1) end
+			if teleportRevision[id] == revision and root.Parent and player.Character == root.Parent and not hum.SeatPart and root:CanSetNetworkOwnership() then
+				root:SetNetworkOwnershipAuto()
+			end
+		end)
+	end
+end
+local function aliveMember(player) return s and Rules.available(s, player.UserId) end
+local function distanceOK(player, target, maximum)
+	local root = rootOf(player)
+	if not root or not target or not target.Parent then return false end
+	local distance = (root.Position - target.Position).Magnitude
+	return distance == distance and distance &lt;= maximum
+end
+local function lineOfSight(player, target)
+	local root = rootOf(player); if not root then return false end
+	local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = {w.geometry}
+	-- Ground pads can share a plane with the floor. Aim above the target surface so
+	-- the floor at the ray endpoint cannot incorrectly cancel recovery/extraction.
+	-- Upright props use their center: raising the curator ray would hit its head.
+	local padOffset = target.Size.Y &lt;= 1 and target.Size.Y / 2 + 0.2 or 0
+	local aim = target.Position + Vector3.new(0, padOffset, 0)
+	return workspace:Raycast(root.Position, aim - root.Position, params) == nil
+end
+
+-- Tap a native prompt, then stay nearby. Timing and continuous checks belong to the server.
+local function interact(player, target, seconds, prompt, text, allowed, complete)
+	local id, now = player.UserId, os.clock()
+	if not peers[id] or not prompt.Enabled or jobs[id] then return end
+	if now - (lastPrompt[id] or -10) &lt; 0.25 then return end
+	lastPrompt[id] = now
+	if not distanceOK(player, target, Config.InteractionDistance) or not lineOfSight(player, target) or not allowed() then return end
+	jobs[id] = {target = target, prompt = prompt, duration = seconds, finish = now + seconds, text = text, allowed = allowed, complete = complete}
+	notify(player, text .. &quot; — stay nearby for &quot; .. seconds .. &quot;s; move away to cancel&quot;)
+end
+
+local function applyCosmetics(player)
+	local profile = Profiles.get(player); local char = player.Character
+	if not profile or not char then return end
+	local chosen
+	for _, item in ipairs(Config.Catalog) do if item.Id == profile.equipped and profile.entitlements[item.Id] then chosen = item end end
+	if not chosen then return end
+	for _, p in ipairs(char:GetChildren()) do
+		if p:IsA(&quot;BasePart&quot;) and p.Name ~= &quot;HumanoidRootPart&quot; then
+			p.Color = Color3.fromRGB(unpack(chosen.Color)); p.Material = Enum.Material.SmoothPlastic
+		end
+	end
+end
+
+local function updateDisplays()
+	for i, pad in ipairs(w.decorPads) do
+		local old = pad:FindFirstChild(&quot;Decoration&quot;); if old then old:Destroy() end
+		local player = crew()[i]; local p = player and Profiles.get(player)
+		if p and p.decor ~= &quot;&quot; and p.entitlements[p.decor] then
+			local item
+			for _, c in ipairs(Config.Catalog) do if c.Id == p.decor then item = c end end
+			if item then
+				local ornament = World.part(pad, &quot;Decoration&quot;, Vector3.new(2.6, 3, 2.6), pad.Position + Vector3.new(0, 2, 0), Color3.fromRGB(unpack(item.Color)), Enum.Material.Neon)
+				ornament.Shape = Enum.PartType.Ball; ornament.CanCollide = false
+				World.label(ornament, player.DisplayName .. &quot; / &quot; .. item.Name)
+			end
+		end
+	end
+end
+
+local function broadcast()
+	local roster = {}; local leader = host()
+	for _, p in ipairs(crew()) do
+		local member = s and s.members[p.UserId]
+		table.insert(roster, {id = p.UserId, name = p.DisplayName, ready = ready[p.UserId] == true, role = member and member.role or &quot;Next crew&quot;, captured = member and member.captured or false})
+	end
+	for _, player in ipairs(crew()) do
+		local profile = Profiles.get(player); local job = jobs[player.UserId]; local member = s and s.members[player.UserId]
+		stateEvent:FireClient(player, {
+			status = s and s.status or &quot;Lobby&quot;, roster = roster, host = leader and leader.UserId,
+			member = member, seed = s and s.seed, mode = s and s.mode,
+			vault = s and s.vault, heat = s and math.floor(s.heat) or 0,
+			timeLeft = s and math.ceil(s.timeLeft) or Config.RunSeconds,
+			signals = s and s.signalCount or 0, needed = s and s.needed or 2,
+			powerOff = s and s.powerOff or false, vaultOpen = s and s.vaultOpen or false,
+			core = s and s.core or &quot;Vault&quot;, carrier = s and s.carrier,
+			curator = s and s.curator or &quot;Waiting&quot;, watchedEntrance = s and s.watchedEntrance,
+			result = s and s.result, exit = s and s.exit, alarmed = s and s.alarmed or false,
+			xp = profile and profile.xp or 0, wins = profile and profile.wins or 0,
+			entitlements = profile and profile.entitlements or {}, equipped = profile and profile.equipped or &quot;mint&quot;,
+			decor = profile and profile.decor or &quot;&quot;, saveStatus = Profiles.status[player.UserId] or &quot;Loading&quot;,
+			commerce = Commerce.enabled(), exposure = exposure[player.UserId] or 0,
+			job = job and {text = job.text, remaining = math.max(0, job.finish - os.clock()), duration = job.duration} or nil,
+			reward = s and Rules.reward(s, player.UserId) or 0,
+		})
+	end
+end
+
+local bindCore
+local function dropCore(_position)
+	if not s or s.core ~= &quot;Dropped&quot; then return end
+	-- Recovery pedestal is known clear: a disconnect atop a solid exhibit cannot bury the core.
+	local safe = Vector3.new(0, 2.5, 37)
+	World.makeCore(w, safe); bindCore()
+end
+local function capture(player, reason)
+	if not aliveMember(player) then return end
+	local root = rootOf(player); local position = root and root.Position or Vector3.new(0, 3, 35)
+	local hadCore = s.carrier == player.UserId
+	if Rules.capture(s, player.UserId) then
+		jobs[player.UserId] = nil; exposure[player.UserId] = 0
+		if hadCore then dropCore(position) end
+		teleport(player, w.recovery)
+		notify(player, reason .. &quot;. Recover for free at the coral pad; carried bonus prisms were lost.&quot;)
+	end
+end
+bindCore = function()
+	World.prompt(w.core, &quot;Take core&quot;, &quot;Aurora core&quot;, 1.5, function(player, target, seconds, prompt)
+		interact(player, target, seconds, prompt, &quot;Securing core&quot;, function()
+			return aliveMember(player) and s.vaultOpen and (s.core == &quot;Vault&quot; or s.core == &quot;Dropped&quot;)
+		end, function()
+			if Rules.takeCore(s, player.UserId) then
+				w.core:Destroy(); w.core = nil; announce(player.DisplayName .. &quot; has the core. Regroup at an extraction!&quot;)
+			end
+		end)
+	end)
+end
+
+local function bindWorld()
+	for name, entry in pairs(w.entrances) do
+		World.prompt(entry.part, &quot;Enter&quot;, name .. &quot; approach&quot;, 1, function(player, target, seconds, prompt)
+			interact(player, target, seconds, prompt, &quot;Taking &quot; .. name .. &quot; route&quot;, function()
+				local m = s and s.members[player.UserId]
+				return s and s.status == &quot;Active&quot; and m and not m.entered and not m.captured
+			end, function()
+				if Rules.enter(s, player.UserId, name) then teleport(player, entry.destination) end
+			end)
+		end)
+	end
+	World.prompt(w.recoveryPad, &quot;Recover&quot;, &quot;Free / costs 15 mission seconds&quot;, 4, function(player, target, seconds, prompt)
+		interact(player, target, seconds, prompt, &quot;Recovering&quot;, function()
+			return s and s.status == &quot;Active&quot; and s.members[player.UserId] and s.members[player.UserId].captured
+		end, function()
+			if Rules.recover(s, player.UserId) then teleport(player, w.spawn); notify(player, &quot;Choose an entrance and rejoin the crew.&quot;) end
+		end)
+	end)
+	World.prompt(w.returnGate, &quot;Leave gallery&quot;, &quot;Car or on-foot escape&quot;, 1, function(player, target, seconds, prompt)
+		interact(player, target, seconds, prompt, &quot;Opening getaway gate&quot;, function() return aliveMember(player) end, function()
+			teleport(player, Vector3.new(22, 4, 66))
+		end)
+	end)
+	for index, node in ipairs(w.nodes) do
+		World.prompt(node, &quot;Sync signal&quot;, &quot;Signal &quot; .. index, 3, function(player, target, seconds, prompt)
+			interact(player, target, seconds, prompt, &quot;Syncing signal &quot; .. index, function()
+				return aliveMember(player) and not s.signals[index] and s.signalCount &lt; s.needed
+			end, function()
+				if Rules.signal(s, player.UserId, index) then node.Color = World.colors.ink; prompt.Enabled = false end
+			end)
+		end)
+	end
+	World.prompt(w.power, &quot;Cut light grid&quot;, &quot;Dim patrol range / quiet vault&quot;, 4, function(player, target, seconds, prompt)
+		interact(player, target, seconds, prompt, &quot;Rerouting light grid&quot;, function() return aliveMember(player) and not s.powerOff end, function()
+			if Rules.power(s, player.UserId) then
+				w.power.Color = World.colors.ink; Lighting.Brightness = 1.3; prompt.Enabled = false
+				for _, p in ipairs(w.geometry:GetChildren()) do
+					if p.Name == &quot;Gallery light&quot; or p.Name == &quot;Warm windows&quot; then p.Material = Enum.Material.SmoothPlastic; p.Color = World.colors.ink end
+				end
+				announce(&quot;LIGHT GRID DOWN. Patrol sight range reduced. Quiet vault route available.&quot;)
+			end
+		end)
+	end)
+	World.prompt(w.curator, &quot;Release&quot;, &quot;Open canal / lower heat&quot;, 2, function(player, target, seconds, prompt)
+		interact(player, target, seconds, prompt, &quot;Helping curator leave&quot;, function() return aliveMember(player) and s.curator ~= &quot;Released&quot; end, function()
+			if Rules.curator(s, player.UserId, &quot;Release&quot;) then w.curator.Color = World.colors.mint; announce(&quot;Curator released. Canal extraction unlocked.&quot;) end
+		end)
+	end)
+	World.prompt(w.curator, &quot;Capture&quot;, &quot;+1 signal / +25 heat&quot;, 2, function(player, target, seconds, prompt)
+		interact(player, target, seconds, prompt, &quot;Detaining curator&quot;, function() return aliveMember(player) and s.curator == &quot;Waiting&quot; end, function()
+			if Rules.curator(s, player.UserId, &quot;Capture&quot;) then w.curator.Color = World.colors.coral; announce(&quot;Curator detained: one signal gained, crew heat +25.&quot;) end
+		end)
+	end, Enum.KeyCode.F)
+	for name, vault in pairs(w.vaults) do
+		for _, forced in ipairs({false, true}) do
+			World.prompt(vault, forced and &quot;Force vault&quot; or &quot;Open quietly&quot;, forced and &quot;+65 heat / no signals needed&quot; or &quot;Signals + light grid required&quot;, forced and 9 or 5, function(player, target, seconds, prompt)
+				if s and s.vault ~= name then notify(player, &quot;Empty display vault. The core is in the &quot; .. s.vault .. &quot; wing.&quot;); return end
+				if not forced and s and (s.signalCount &lt; s.needed or not s.powerOff) then notify(player, &quot;Sync signals and cut the light grid first.&quot;); return end
+				interact(player, target, seconds, prompt, forced and &quot;Forcing vault / +65 heat&quot; or &quot;Opening quietly&quot;, function()
+					return aliveMember(player) and s.vault == name and not s.vaultOpen and (forced or (s.signalCount &gt;= s.needed and s.powerOff))
+				end, function()
+					if Rules.vault(s, player.UserId, forced) then
+						vault.Color = World.colors.gold; World.makeCore(w, vault.Position + Vector3.new(0, 4, 0)); bindCore()
+						announce(&quot;VAULT OPEN. Secure the core; choose your escape.&quot;)
+					end
+				end)
+			end, forced and Enum.KeyCode.F or Enum.KeyCode.E)
+		end
+	end
+	for index, p in ipairs(w.loot) do
+		World.prompt(p, &quot;Take prism&quot;, &quot;Bonus lost if captured&quot;, 1, function(player, target, seconds, prompt)
+			interact(player, target, seconds, prompt, &quot;Taking bonus prism&quot;, function() return aliveMember(player) and not lootTaken[index] end, function()
+				lootTaken[index] = true; s.members[player.UserId].bonus += 1; p.Transparency = 1; prompt.Enabled = false
+				p.Label.Enabled = false
+			end)
+		end)
+	end
+	for name, exit in pairs(w.exits) do
+		World.prompt(exit, &quot;Extract crew&quot;, &quot;Core carrier / crew within 20 studs&quot;, name == &quot;Tunnel&quot; and 8 or 4, function(player, target, seconds, prompt)
+			if s and not Rules.canExit(s, name) then notify(player, name == &quot;Tram&quot; and &quot;Tram closed at 75 heat. Use the tunnel.&quot; or &quot;Release the curator to unlock the canal.&quot;); return end
+			if s and s.carrier ~= player.UserId then notify(player, &quot;The core carrier must start extraction. Regroup here first.&quot;); return end
+			interact(player, target, seconds, prompt, &quot;Extracting / crew regroup now&quot;, function()
+				return aliveMember(player) and s.carrier == player.UserId and Rules.canExit(s, name)
+			end, function()
+				local nearby = {}
+				for _, p in ipairs(crew()) do nearby[p.UserId] = distanceOK(p, target, 20) end
+				if Rules.extract(s, player.UserId, name, nearby) then announce(s.result .. &quot; / &quot; .. tostring(s.escapedCount) .. &quot; crew escaped&quot;) end
+			end)
+		end)
+	end
+end
+
+local function rebuild()
+	w = World.build(); bindWorld(); World.makeCar(w); updateDisplays()
+end
+
+local function begin(player, mode)
+	if player ~= host() or (s and s.status == &quot;Active&quot;) or (s and os.clock() - finishedAt &lt; 5) then return end
+	local ids = {}
+	for _, p in ipairs(crew()) do
+		if not Profiles.get(p) then notify(player, &quot;Waiting for crew profiles.&quot;); return end
+		if p ~= player and not ready[p.UserId] then notify(player, p.DisplayName .. &quot; must choose Ready first.&quot;); return end
+		table.insert(ids, p.UserId)
+	end
+	if #ids == 0 or #ids &gt; Config.MaxPlayers then return end
+	runCounter += 1
+	local day = math.floor(os.time() / 86400)
+	local seed = mode == &quot;Daily&quot; and day or ((os.time() + runCounter * 7919) % 2147483646)
+	s = Rules.new(ids, seed, mode, day); s.timeLeft = Config.RunSeconds
+	runId = HttpService:GenerateGUID(false); jobs = {}; exposure = {}; stasisAt = {}; lootTaken = {}
+	rebuild(); Lighting.Brightness = 2
+	World.makeGuards(w, math.min(4, 1 + math.ceil(#ids / 2)), s.patrolOffset)
+	for _, guard in ipairs(w.guards) do
+		World.prompt(guard.part, &quot;Stasis&quot;, &quot;Free tool / 3 charges per run&quot;, 0.7, function(p, target, seconds, prompt)
+			interact(p, target, seconds, prompt, &quot;Stasis pulse&quot;, function()
+				local m = s.members[p.UserId]
+				return aliveMember(p) and m.stasis &gt; 0 and os.clock() - (stasisAt[p.UserId] or -100) &gt;= 15 and guard.frozenUntil &lt;= os.clock()
+			end, function()
+				s.members[p.UserId].stasis -= 1; stasisAt[p.UserId] = os.clock(); guard.frozenUntil = os.clock() + 12
+				exposure[p.UserId] = 0; guard.part.Color = World.colors.blue
+			end)
+		end)
+	end
+	for _, p in ipairs(crew()) do
+		teleport(p, w.spawn + Vector3.new((table.find(ids, p.UserId) - 1) * 4, 0, 0)); applyCosmetics(p)
+	end
+	announce(&quot;Contract started. Core: &quot; .. s.vault .. &quot; wing. &quot; .. s.watchedEntrance .. &quot; entrance is watched (+12 heat).&quot;)
+	print(&quot;GLASSHOUSE_RUN_START&quot;, runId, mode, seed, #ids)
+end
+
+command.OnServerEvent:Connect(function(player, action, value)
+	local id, now = player.UserId, os.clock()
+	if not peers[id] or type(action) ~= &quot;string&quot; or #action &gt; 20 then return end
+	if now - (lastCommand[id] or -10) &lt; 0.35 then return end
+	lastCommand[id] = now
+	if action == &quot;Sync&quot; then broadcast()
+	elseif action == &quot;Ready&quot; then
+		if not s or s.status ~= &quot;Active&quot; then ready[id] = not ready[id] end
+	elseif action == &quot;Start&quot; and (value == &quot;Daily&quot; or value == &quot;Shuffle&quot;) then begin(player, value)
+	elseif action == &quot;Equip&quot; and type(value) == &quot;string&quot; and #value &lt;= 40 then
+		local p = Profiles.get(player)
+		if p and p.entitlements[value] then
+			if value == p.equipped or value == p.decor or now - (equipAt[id] or -10) &lt; 5 then return end
+			equipAt[id] = now
+			task.spawn(function() Profiles.queue(id, {kind = &quot;Equip&quot;, item = value}); applyCosmetics(player); updateDisplays() end)
+		else notify(player, &quot;Earn this cosmetic first. No gameplay tools require a purchase.&quot;) end
+	elseif action == &quot;Buy&quot; and type(value) == &quot;string&quot; and #value &lt;= 40 then
+		if s and s.status == &quot;Active&quot; then notify(player, &quot;Cosmetics are available between runs.&quot;); return end
+		task.spawn(function() local _, message = Commerce.prompt(player, value); notify(player, message) end)
+	elseif action == &quot;Cancel&quot; then jobs[id] = nil
+	end
+end)
+
+local function characterAdded(player, char)
+	local hum = char:WaitForChild(&quot;Humanoid&quot;, 10); local root = char:WaitForChild(&quot;HumanoidRootPart&quot;, 10)
+	if not hum or not root or player.Parent ~= Players then return end
+	hum.WalkSpeed = 18
+	teleport(player, s and s.members[player.UserId] and s.members[player.UserId].captured and w.recovery or w.spawn)
+	applyCosmetics(player)
+	hum.Died:Connect(function() capture(player, &quot;Crew member down&quot;); jobs[player.UserId] = nil end)
+end
+
+local function playerAdded(player)
+	if peers[player.UserId] then return end
+	if #Players:GetPlayers() &gt; Config.MaxPlayers then player:Kick(&quot;This prototype supports up to 5 players per server.&quot;); return end
+	peers[player.UserId] = true; ready[player.UserId] = false
+	player.CharacterAdded:Connect(function(char) characterAdded(player, char) end)
+	if player.Character then task.spawn(characterAdded, player, player.Character) end
+	task.spawn(function()
+		Profiles.load(player)
+		if player.Parent == Players then Commerce.reconcile(player); applyCosmetics(player); updateDisplays(); broadcast() end
+	end)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	local id = player.UserId
+	local root = rootOf(player); local position = root and root.Position or Vector3.new(0, 3, 35)
+	if s and Rules.remove(s, id) then dropCore(position) end
+	peers[id] = nil; ready[id] = nil; jobs[id] = nil; lastCommand[id] = nil; lastPrompt[id] = nil; equipAt[id] = nil
+	teleportRevision[id] = nil
+	exposure[id] = nil; stasisAt[id] = nil; motion[id] = nil; grace[id] = nil
+	task.spawn(Profiles.flush, id)
+end)
+
+local function finishRun()
+	if not s or s.status == &quot;Active&quot; or s.credited then return end
+	s.credited = true; finishedAt = os.clock(); jobs = {}
+	local completed, completedId = s, runId
+	for id in pairs(completed.members) do
+		local reward = Rules.reward(completed, id)
+		task.spawn(Profiles.queue, id, {kind = &quot;Run&quot;, id = completedId, xp = reward, won = completed.status == &quot;Success&quot; and completed.members[id].escaped})
+	end
+	print(&quot;GLASSHOUSE_RUN_END&quot;, completedId, completed.result, math.floor(completed.elapsed), completed.heat, completed.captures, completed.exit or &quot;None&quot;)
+	announce(completed.result .. &quot;. Free retry is available in 5 seconds.&quot;)
+end
+
+local function patrols(dt)
+	if not s or s.status ~= &quot;Active&quot; then return end
+	local detected = {}
+	for _, guard in ipairs(w.guards) do
+		local p = guard.part
+		if os.clock() &gt;= guard.frozenUntil then
+			p.Color = World.colors.coral
+			local goal = guard.path[guard.target]; local delta = goal - p.Position
+			if delta.Magnitude &lt;= 0.8 then guard.target = guard.target % #guard.path + 1
+			else
+				local pos = p.Position + delta.Unit * math.min(delta.Magnitude, dt * 6)
+				p.CFrame = CFrame.lookAt(pos, goal)
+			end
+			guard.beam.CFrame = p.CFrame * CFrame.new(0, -3.35, -9); guard.beam.Transparency = 0.25
+			for _, player in ipairs(crew()) do
+				local root = rootOf(player)
+				if root and aliveMember(player) then
+					local deltaToPlayer = root.Position - p.Position; local distance = deltaToPlayer.Magnitude
+					if distance &lt; (s.powerOff and 17 or 27) and (distance &lt; 6 or p.CFrame.LookVector:Dot(deltaToPlayer.Unit) &gt; 0.55) then
+						local ray = RaycastParams.new(); ray.FilterType = Enum.RaycastFilterType.Include; ray.FilterDescendantsInstances = {w.geometry}
+						if not workspace:Raycast(p.Position, deltaToPlayer, ray) then detected[player.UserId] = true end
+					end
+				end
+			end
+		else guard.beam.Transparency = 1 end
+	end
+	for _, player in ipairs(crew()) do
+		local id = player.UserId
+		if aliveMember(player) then
+			if detected[id] then
+				exposure[id] = math.min(3.8, (exposure[id] or 0) + dt); Rules.addHeat(s, dt * 3)
+				if exposure[id] &gt;= 3.8 then capture(player, &quot;Tagged by a security drone&quot;) end
+			else exposure[id] = math.max(0, (exposure[id] or 0) - dt * 1.6) end
+		end
+	end
+end
+
+local function moveCars(dt)
+	for _, car in ipairs(w.cars) do
+		local driver = car.seat.Occupant and Players:GetPlayerFromCharacter(car.seat.Occupant.Parent)
+		local allowed = driver and aliveMember(driver)
+		local throttle = allowed and car.seat.ThrottleFloat or 0; local steer = allowed and car.seat.SteerFloat or 0
+		car.yaw -= steer * dt * 1.7 * (throttle ~= 0 and math.sign(throttle) or 0)
+		car.upright.CFrame = CFrame.Angles(0, car.yaw, 0)
+		local forward = CFrame.Angles(0, car.yaw, 0).LookVector; local current = car.chassis.AssemblyLinearVelocity
+		local speed = throttle * 42
+		car.chassis.AssemblyLinearVelocity = Vector3.new(forward.X * speed, math.clamp(current.Y, -60, 60), forward.Z * speed)
+		if car.chassis.Position.Y &lt; -10 or math.abs(car.chassis.Position.X) &gt; 182 or math.abs(car.chassis.Position.Z + 25) &gt; 215 then
+			car.model:PivotTo(car.origin); car.yaw = math.pi/2; car.chassis.AssemblyLinearVelocity = Vector3.zero
+			for _, p in ipairs(crew()) do grace[p.UserId] = os.clock() + 2 end
+		end
+	end
+end
+
+local function checkMotion(player)
+	local root, hum = rootOf(player); if not root then return end
+	local id, pos, now = player.UserId, root.Position, os.clock()
+	if pos.X ~= pos.X or pos.Y ~= pos.Y or pos.Z ~= pos.Z or pos.Magnitude &gt; 5000 then teleport(player, w.spawn); return end
+	if pos.Y &lt; -14 then
+		if aliveMember(player) then capture(player, &quot;Rescued from the water&quot;) else teleport(player, w.spawn) end
+		return
+	end
+	local last = motion[id]
+	local seated = hum.SeatPart and hum.SeatPart:IsDescendantOf(w.model)
+	if last and now &gt; (grace[id] or 0) then
+		local displacement = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(last.position.X, 0, last.position.Z)).Magnitude
+		if displacement &gt; (seated and 65 or 32) * (now - last.time) + 9 then
+			teleport(player, last.position); jobs[id] = nil; return
+		end
+	end
+	motion[id] = {position = pos, time = now}
+end
+
+rebuild()
+Players.PlayerAdded:Connect(playerAdded)
+for _, player in ipairs(Players:GetPlayers()) do playerAdded(player) end
+RunService.Heartbeat:Connect(function(dt)
+	moveCars(math.min(dt, 0.1))
+	if s then Rules.tick(s, dt) end
+	for id, job in pairs(jobs) do
+		local player = Players:GetPlayerByUserId(id)
+		if not player or not job.target.Parent or not job.prompt.Enabled or not distanceOK(player, job.target, Config.InteractionDistance) or not lineOfSight(player, job.target) or not job.allowed() then
+			jobs[id] = nil
+		elseif os.clock() &gt;= job.finish then jobs[id] = nil; job.complete() end
+	end
+	patrolTick += dt; pulse += dt
+	if patrolTick &gt;= 0.1 then patrols(math.min(patrolTick, 0.3)); patrolTick = 0 end
+	if pulse &gt;= 0.25 then
+		pulse = 0
+		for _, player in ipairs(crew()) do checkMotion(player) end
+		finishRun(); broadcast()
+	end
+end)
+print(&quot;GLASSHOUSE_READY | 1–5 players | purchases disabled: &quot; .. tostring(not Commerce.enabled()))
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">ProfileModel</string><ProtectedString name="Source">-- Pure merge-safe profile transformations. Store deltas, never a stale full profile.
+local Model = {}
+function Model.clean(old)
+	if old ~= nil and (type(old) ~= &quot;table&quot; or old.version ~= 1) then
+		error(&quot;Unsupported profile; refuse to overwrite&quot;)
+	end
+	old = old or {version = 1}
+	local p = {version = 1, xp = 0, runs = 0, wins = 0, entitlements = {mint = true}, receipts = {}, runsSeen = {}, equipped = &quot;mint&quot;, decor = &quot;&quot;}
+	for _, k in ipairs({&quot;xp&quot;, &quot;runs&quot;, &quot;wins&quot;}) do
+		local v = old[k]
+		if type(v) == &quot;number&quot; and v == v and v &gt;= 0 and v &lt; 1e12 then p[k] = math.floor(v) end
+	end
+	for _, k in ipairs({&quot;entitlements&quot;, &quot;receipts&quot;, &quot;runsSeen&quot;}) do
+		if type(old[k]) == &quot;table&quot; then
+			for key, value in pairs(old[k]) do
+				if type(key) == &quot;string&quot; and #key &lt;= 160 and value == true then p[k][key] = true end
+			end
+		end
+	end
+	for _, k in ipairs({&quot;equipped&quot;, &quot;decor&quot;}) do
+		if type(old[k]) == &quot;string&quot; and #old[k] &lt; 50 then p[k] = old[k] end
+	end
+	return p
+end
+
+function Model.apply(old, op, catalog)
+	local p = Model.clean(old)
+	if op.kind == &quot;Run&quot; then
+		if not p.runsSeen[op.id] then
+			p.runsSeen[op.id] = true; p.xp += op.xp; p.runs += 1
+			if op.won then p.wins += 1 end
+		end
+	elseif op.kind == &quot;Receipt&quot; then
+		-- Entitlement + receipt are committed in the SAME UpdateAsync transaction.
+		if not p.receipts[op.receipt] then
+			p.entitlements[op.item] = true; p.receipts[op.receipt] = true
+		end
+	elseif op.kind == &quot;Pass&quot; then
+		p.entitlements[op.item] = true
+	elseif op.kind == &quot;Equip&quot; then
+		local item
+		for _, candidate in ipairs(catalog) do if candidate.Id == op.item then item = candidate end end
+		if item and p.entitlements[item.Id] then p[item.Kind == &quot;Decor&quot; and &quot;decor&quot; or &quot;equipped&quot;] = item.Id end
+	end
+	for _, item in ipairs(catalog) do
+		if type(item.EarnedXP) == &quot;number&quot; and p.xp &gt;= item.EarnedXP then p.entitlements[item.Id] = true end
+	end
+	return p
+end
+return Model
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">ProfileService</string><ProtectedString name="Source">local DataStoreService = game:GetService(&quot;DataStoreService&quot;)
+local RunService = game:GetService(&quot;RunService&quot;)
+local Config = require(game.ReplicatedStorage.Glasshouse.Config)
+local Model = require(script.Parent.ProfileModel)
+local Service = {profiles = {}, pending = {}, status = {}, busy = {}}
+local live = Config.DataStoreEnabled and not RunService:IsStudio()
+local store = live and DataStoreService:GetDataStore(Config.DataStoreName) or nil
+
+function Service.load(player)
+	local id = player.UserId
+	if Service.status[id] then return end
+	Service.status[id] = &quot;Loading&quot;
+	Service.pending[id] = {}
+	if not live then
+		Service.profiles[id] = Model.clean(nil)
+		Service.status[id] = &quot;Session only&quot;
+		return
+	end
+	for attempt = 1, 3 do
+		local ok, data = pcall(function() return Model.clean(store:GetAsync(&quot;p_&quot; .. id)) end)
+		if ok then Service.profiles[id] = data; Service.status[id] = &quot;Saved&quot;; return end
+		warn(&quot;Glasshouse profile load failed; existing data will not be overwritten&quot;, id, attempt)
+		task.wait(attempt)
+	end
+	Service.profiles[id] = Model.clean(nil)
+	Service.status[id] = &quot;Unavailable / unsaved session&quot;
+end
+
+function Service.get(player)
+	return Service.profiles[player.UserId]
+end
+
+function Service.transaction(id, op)
+	local began = os.clock()
+	while Service.busy[id] and os.clock() - began &lt; 8 do task.wait(0.1) end
+	if Service.busy[id] or not Service.profiles[id] then return false end
+	Service.busy[id] = true
+	local ok, updated
+	if live and Service.status[id] ~= &quot;Unavailable / unsaved session&quot; then
+		ok, updated = pcall(function()
+			return store:UpdateAsync(&quot;p_&quot; .. id, function(old)
+				return Model.apply(old, op, Config.Catalog)
+			end)
+		end)
+	else
+		ok, updated = pcall(Model.apply, Service.profiles[id], op, Config.Catalog)
+	end
+	if ok then
+		Service.profiles[id] = updated
+		if live and Service.status[id] ~= &quot;Unavailable / unsaved session&quot; then Service.status[id] = &quot;Saved&quot; end
+	elseif live then
+		Service.status[id] = &quot;Save pending&quot;
+		warn(&quot;Glasshouse save failed; operation retained for retry&quot;, id, op.kind)
+	end
+	Service.busy[id] = nil
+	return ok
+end
+
+function Service.queue(id, op)
+	Service.pending[id] = Service.pending[id] or {}
+	table.insert(Service.pending[id], op)
+	Service.flush(id)
+end
+
+function Service.flush(id)
+	if Service.flushing and Service.flushing[id] then return end
+	Service.flushing = Service.flushing or {}; Service.flushing[id] = true
+	local queue = Service.pending[id]
+	while queue and #queue &gt; 0 do
+		if not Service.transaction(id, queue[1]) then break end
+		table.remove(queue, 1)
+	end
+	Service.flushing[id] = nil
+end
+
+function Service.canCommerce(id)
+	return live and Service.profiles[id] ~= nil and Service.status[id] == &quot;Saved&quot;
+end
+
+function Service.canPersist(id)
+	return live and Service.profiles[id] ~= nil and (Service.status[id] == &quot;Saved&quot; or Service.status[id] == &quot;Save pending&quot;)
+end
+
+task.spawn(function()
+	while task.wait(30) do
+		for id, queue in pairs(Service.pending) do if #queue &gt; 0 then task.spawn(Service.flush, id) end end
+	end
+end)
+
+game:BindToClose(function()
+	local deadline = os.clock() + 25
+	while os.clock() &lt; deadline do
+		local unfinished = false
+		for id, queue in pairs(Service.pending) do
+			if #queue &gt; 0 or Service.busy[id] or (Service.flushing and Service.flushing[id]) then
+				unfinished = true
+				if not Service.busy[id] and not (Service.flushing and Service.flushing[id]) then task.spawn(Service.flush, id) end
+			end
+		end
+		if not unfinished then break end
+		task.wait(0.2)
+	end
+end)
+return Service
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">World</string><ProtectedString name="Source">local World = {}
+local C = {ink = Color3.fromRGB(22, 34, 49), stone = Color3.fromRGB(218, 220, 209), mint = Color3.fromRGB(89, 231, 195), gold = Color3.fromRGB(255, 193, 93), blue = Color3.fromRGB(121, 181, 222), coral = Color3.fromRGB(255, 112, 109)}
+local function part(parent, name, size, pos, color, material)
+	local p = Instance.new(&quot;Part&quot;); p.Name = name; p.Size = size; p.CFrame = CFrame.new(pos)
+	p.Anchored = true; p.Color = color or C.stone; p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth; p.BottomSurface = Enum.SurfaceType.Smooth; p.Parent = parent
+	return p
+end
+World.part = part
+
+function World.label(p, text, color, height)
+	local gui = Instance.new(&quot;BillboardGui&quot;); gui.Name = &quot;Label&quot;; gui.Size = UDim2.fromOffset(250, height or 70)
+	gui.StudsOffset = Vector3.new(0, p.Size.Y / 2 + 2, 0); gui.MaxDistance = 120; gui.AlwaysOnTop = false; gui.Parent = p
+	local t = Instance.new(&quot;TextLabel&quot;); t.Size = UDim2.fromScale(1, 1); t.BackgroundTransparency = 1
+	t.Text = text; t.Font = Enum.Font.GothamBold; t.TextSize = 17; t.TextColor3 = color or C.mint
+	t.TextStrokeTransparency = 0.25; t.TextWrapped = true; t.Parent = gui
+	return t
+end
+
+function World.prompt(p, action, title, duration, callback, key)
+	local prompt = Instance.new(&quot;ProximityPrompt&quot;); prompt.Name = action; prompt.ActionText = action
+	prompt.ObjectText = title; prompt.MaxActivationDistance = 11; prompt.HoldDuration = 0
+	prompt.KeyboardKeyCode = key or Enum.KeyCode.E; prompt.GamepadKeyCode = key == Enum.KeyCode.F and Enum.KeyCode.ButtonY or Enum.KeyCode.ButtonX
+	prompt.RequiresLineOfSight = false; prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
+	prompt.Parent = p; prompt.Triggered:Connect(function(player) callback(player, p, duration, prompt) end)
+	return prompt
+end
+
+function World.build()
+	local previous = workspace:FindFirstChild(&quot;GlasshouseWorld&quot;); if previous then previous:Destroy() end
+	local model = Instance.new(&quot;Model&quot;); model.Name = &quot;GlasshouseWorld&quot;; model.Parent = workspace
+	local w = {model = model, entrances = {}, nodes = {}, vaults = {}, exits = {}, guards = {}, loot = {}, cars = {}}
+	local geometry = Instance.new(&quot;Folder&quot;); geometry.Name = &quot;Architecture&quot;; geometry.Parent = model; w.geometry = geometry
+	part(geometry, &quot;Midnight sea&quot;, Vector3.new(800, 4, 800), Vector3.new(0, -7, -20), Color3.fromRGB(32, 83, 105))
+	part(geometry, &quot;Island&quot;, Vector3.new(370, 8, 430), Vector3.new(0, -4, -25), Color3.fromRGB(152, 171, 133), Enum.Material.Grass)
+	part(geometry, &quot;Quayside road&quot;, Vector3.new(34, 0.3, 380), Vector3.new(98, 0.2, -25), C.ink, Enum.Material.Asphalt)
+	part(geometry, &quot;Coast road&quot;, Vector3.new(260, 0.3, 30), Vector3.new(0, 0.2, -160), C.ink, Enum.Material.Asphalt)
+	part(geometry, &quot;Safehouse lane&quot;, Vector3.new(250, 0.3, 28), Vector3.new(0, 0.2, 88), C.ink, Enum.Material.Asphalt)
+	for z = -185, 140, 25 do part(geometry, &quot;Lane mark&quot;, Vector3.new(0.8, 0.1, 10), Vector3.new(98, 0.42, z), C.gold) end
+	for x = -120, 120, 25 do part(geometry, &quot;Lane mark&quot;, Vector3.new(10, 0.1, 0.8), Vector3.new(x, 0.42, -160), C.gold) end
+	-- Roofless gallery for a readable third-person camera. Covers and dividers block drone rays.
+	part(geometry, &quot;Gallery plinth&quot;, Vector3.new(120, 1, 120), Vector3.new(0, 0, -8), C.stone, Enum.Material.Marble)
+	part(geometry, &quot;West wall&quot;, Vector3.new(2, 13, 120), Vector3.new(-60, 7, -8), C.ink)
+	part(geometry, &quot;East wall&quot;, Vector3.new(2, 13, 120), Vector3.new(60, 7, -8), C.ink)
+	part(geometry, &quot;North wall&quot;, Vector3.new(120, 13, 2), Vector3.new(0, 7, -68), C.ink)
+	for _, x in ipairs({-41, 41}) do part(geometry, &quot;Front wall&quot;, Vector3.new(38, 13, 2), Vector3.new(x, 7, 52), C.ink) end
+	part(geometry, &quot;Front lintel&quot;, Vector3.new(44, 3, 2), Vector3.new(0, 12, 52), C.ink)
+	local fascia = part(geometry, &quot;Aurora fascia&quot;, Vector3.new(65, 2, 2), Vector3.new(0, 16, 53), C.mint, Enum.Material.Neon)
+	World.label(fascia, &quot;A U R O R A   E X C H A N G E&quot;, C.stone, 40)
+	for _, x in ipairs({-38, 38}) do
+		for _, z in ipairs({-43, 13}) do
+			part(geometry, &quot;Gallery divider&quot;, Vector3.new(22, 8, 2), Vector3.new(x, 4.5, z), C.stone)
+		end
+	end
+	for _, x in ipairs({-23, 23}) do
+		part(geometry, &quot;Vault wing divider&quot;, Vector3.new(2, 8, 30), Vector3.new(x, 4.5, -34), C.stone)
+	end
+	for _, v in ipairs({Vector3.new(-15, 2, 18), Vector3.new(15, 2, 18), Vector3.new(-14, 2, -10), Vector3.new(15, 2, -10)}) do
+		part(geometry, &quot;Exhibit cover&quot;, Vector3.new(8, 4, 8), v, C.ink)
+		local sculpture = part(geometry, &quot;Light sculpture&quot;, Vector3.new(2, 5, 2), v + Vector3.new(0, 4, 0), C.mint, Enum.Material.Neon)
+		sculpture.CFrame *= CFrame.Angles(0, math.pi / 4, math.pi / 7)
+	end
+	for _, x in ipairs({-54, 54}) do
+		for z = -55, 40, 19 do
+			part(geometry, &quot;Gallery light&quot;, Vector3.new(0.5, 0.2, 10), Vector3.new(x, 0.61, z), C.mint, Enum.Material.Neon)
+		end
+	end
+	local entranceSpecs = {
+		Exhibit = {Vector3.new(0, 1, 62), Vector3.new(0, 4, 36)},
+		Service = {Vector3.new(-42, 1, 62), Vector3.new(-48, 4, -22)},
+		Skybridge = {Vector3.new(42, 1, 62), Vector3.new(44, 4, -53)},
+	}
+	for name, spec in pairs(entranceSpecs) do
+		local p = part(model, name .. &quot; entrance&quot;, Vector3.new(12, 1, 9), spec[1], C.blue)
+		World.label(p, name:upper() .. &quot; ENTRY&quot;, C.blue)
+		w.entrances[name] = {part = p, destination = spec[2]}
+	end
+	local positions = {Vector3.new(-48, 2, 30), Vector3.new(48, 2, 30), Vector3.new(-46, 2, -32), Vector3.new(40, 2, -35)}
+	for i, pos in ipairs(positions) do
+		local p = part(model, &quot;Signal &quot; .. i, Vector3.new(4, 3, 3), pos, C.mint, Enum.Material.Neon)
+		World.label(p, &quot;SIGNAL &quot; .. i); w.nodes[i] = p
+	end
+	w.power = part(model, &quot;Power console&quot;, Vector3.new(6, 4, 3), Vector3.new(0, 2.5, -59), C.blue)
+	World.label(w.power, &quot;LIGHT GRID&quot;, C.blue)
+	for name, pos in pairs({West = Vector3.new(-45, 3, -55), North = Vector3.new(0, 3, -36), East = Vector3.new(43, 3, -55)}) do
+		local p = part(model, name .. &quot; vault&quot;, Vector3.new(10, 5, 7), pos, C.ink, Enum.Material.Metal)
+		World.label(p, name:upper() .. &quot; VAULT&quot;, C.gold); w.vaults[name] = p
+	end
+	w.curator = part(model, &quot;Curator&quot;, Vector3.new(2, 4, 2), Vector3.new(-36, 3, -6), C.gold)
+	part(geometry, &quot;Curator head&quot;, Vector3.new(2, 2, 2), Vector3.new(-36, 6, -6), C.stone).Shape = Enum.PartType.Ball
+	World.label(w.curator, &quot;CURATOR\nRelease: canal route / Capture: signal + heat&quot;, C.gold, 90)
+	for i, pos in ipairs({Vector3.new(-45, 2, 2), Vector3.new(42, 2, -10), Vector3.new(8, 2, -52)}) do
+		local p = part(model, &quot;Prism cache &quot; .. i, Vector3.new(2, 2, 2), pos, C.gold, Enum.Material.Neon)
+		World.label(p, &quot;BONUS PRISM&quot;, C.gold); w.loot[i] = p
+	end
+	local exitSpecs = {Tram = Vector3.new(115, 1, -161), Canal = Vector3.new(-145, 1, -163), Tunnel = Vector3.new(-108, 1, 90)}
+	for name, pos in pairs(exitSpecs) do
+		local p = part(model, name .. &quot; extraction&quot;, Vector3.new(18, 1, 18), pos, C.mint)
+		World.label(p, name:upper() .. &quot; EXTRACTION&quot;, C.mint); w.exits[name] = p
+		part(geometry, name .. &quot; beacon&quot;, Vector3.new(1, 20, 1), pos + Vector3.new(9, 10, 0), C.mint, Enum.Material.Neon)
+	end
+	-- Return gate is physically reachable by every entrance; heist doesn't depend on vehicle physics.
+	w.returnGate = part(model, &quot;Getaway gate&quot;, Vector3.new(14, 1, 7), Vector3.new(0, 1, 43), C.gold)
+	World.label(w.returnGate, &quot;TO GETAWAY CAR / COAST ROAD&quot;, C.gold)
+	w.spawn = Vector3.new(0, 4, 124); w.recovery = Vector3.new(-36, 4, 124)
+	part(geometry, &quot;Crew safehouse&quot;, Vector3.new(85, 1, 32), Vector3.new(-10, 0.5, 127), C.ink)
+	w.board = part(model, &quot;Contract board&quot;, Vector3.new(12, 7, 1), Vector3.new(0, 5, 140), C.ink)
+	World.label(w.board, &quot;BLACKOUT BAY\n1-5 PLAYERS · ALL TOOLS INCLUDED&quot;, C.mint, 85)
+	w.recoveryPad = part(model, &quot;Recovery&quot;, Vector3.new(10, 1, 10), Vector3.new(-36, 1, 124), C.coral)
+	World.label(w.recoveryPad, &quot;RECOVERY / FREE RE-ENTRY&quot;, C.coral)
+	w.decorPads = {}
+	for i = 1, 5 do
+		local p = part(model, &quot;Crew display &quot; .. i, Vector3.new(5, 1, 5), Vector3.new(-40 + i * 14, 1, 138), C.blue)
+		w.decorPads[i] = p
+	end
+	for _, spec in ipairs({{-120, -90, 28}, {-110, 0, 35}, {140, -90, 32}, {145, 30, 25}, {-70, 160, 18}}) do
+		part(geometry, &quot;Coastal building&quot;, Vector3.new(25, spec[3], 24), Vector3.new(spec[1], spec[3]/2, spec[2]), C.ink)
+		part(geometry, &quot;Warm windows&quot;, Vector3.new(25.2, 2, 24.2), Vector3.new(spec[1], spec[3]-6, spec[2]), C.gold, Enum.Material.Neon)
+	end
+	for _, spec in ipairs({{-150, 130}, {135, 140}, {-140, -200}, {150, -205}, {-90, -95}}) do
+		part(geometry, &quot;Palm trunk&quot;, Vector3.new(2, 16, 2), Vector3.new(spec[1], 8, spec[2]), C.gold)
+		for a = 0, 3 do
+			local leaf = part(geometry, &quot;Palm leaf&quot;, Vector3.new(17, 1, 4), Vector3.new(spec[1], 16, spec[2]), Color3.fromRGB(66, 123, 113))
+			leaf.CFrame *= CFrame.Angles(0, a * math.pi / 4, 0.1)
+		end
+	end
+	local spawn = Instance.new(&quot;SpawnLocation&quot;); spawn.Name = &quot;CrewSpawn&quot;; spawn.Size = Vector3.new(10, 1, 10)
+	spawn.Position = Vector3.new(0, 1, 124); spawn.Anchored = true; spawn.Transparency = 1; spawn.CanCollide = false
+	spawn.Neutral = true; spawn.Duration = 0; spawn.Parent = model
+	w.spawnLocation = spawn
+	return w
+end
+
+function World.makeCore(w, position)
+	if w.core then w.core:Destroy() end
+	w.core = part(w.model, &quot;Aurora core&quot;, Vector3.new(2.5, 3, 2.5), position, C.mint, Enum.Material.Neon)
+	w.core.CanCollide = false; World.label(w.core, &quot;AURORA CORE&quot;, C.mint)
+	return w.core
+end
+
+function World.makeGuards(w, count, offset)
+	local paths = {
+		{Vector3.new(-28, 4, 26), Vector3.new(27, 4, 26), Vector3.new(27, 4, 0), Vector3.new(-28, 4, 0)},
+		{Vector3.new(-50, 4, -16), Vector3.new(-30, 4, -16), Vector3.new(-30, 4, -36), Vector3.new(-50, 4, -36)},
+		{Vector3.new(30, 4, -18), Vector3.new(50, 4, -18), Vector3.new(50, 4, -39), Vector3.new(30, 4, -39)},
+		{Vector3.new(-16, 4, -28), Vector3.new(16, 4, -28), Vector3.new(16, 4, -56), Vector3.new(-16, 4, -56)},
+	}
+	for i = 1, count do
+		local path = paths[i]; local start = ((offset + i) % 4) + 1
+		local p = part(w.model, &quot;Security drone &quot; .. i, Vector3.new(3, 2, 3), path[start], C.coral, Enum.Material.Metal)
+		p.CanCollide = false; World.label(p, &quot;PATROL / STASIS&quot;, C.coral, 40)
+		local light = Instance.new(&quot;SpotLight&quot;); light.Face = Enum.NormalId.Front; light.Color = C.coral
+		light.Range = 28; light.Angle = 80; light.Brightness = 3; light.Parent = p
+		local beam = part(w.model, &quot;Patrol direction &quot; .. i, Vector3.new(0.22, 0.12, 18), path[start], C.coral, Enum.Material.Neon)
+		beam.CanCollide = false; beam.CanQuery = false; beam.Transparency = 0.25
+		table.insert(w.guards, {part = p, beam = beam, path = path, target = start % 4 + 1, frozenUntil = 0})
+	end
+end
+
+function World.makeCar(w)
+	local model = Instance.new(&quot;Model&quot;); model.Name = &quot;Crew getaway car&quot;; model.Parent = w.model
+	local origin = CFrame.new(70, 3, 87) * CFrame.Angles(0, math.pi/2, 0)
+	local chassis = part(model, &quot;Chassis&quot;, Vector3.new(7, 1.5, 12), Vector3.zero, C.gold, Enum.Material.Metal)
+	chassis.CFrame = origin; chassis.CustomPhysicalProperties = PhysicalProperties.new(2, 0.1, 0, 1, 1)
+	local function weld(p, localFrame)
+		p.Anchored = false; p.Massless = true; p.CFrame = origin * localFrame
+		local joint = Instance.new(&quot;WeldConstraint&quot;); joint.Part0 = chassis; joint.Part1 = p; joint.Parent = p
+	end
+	local driver
+	for i = 1, 5 do
+		local seat = Instance.new(i == 1 and &quot;VehicleSeat&quot; or &quot;Seat&quot;); seat.Name = i == 1 and &quot;Driver&quot; or &quot;Passenger &quot; .. i
+		seat.Size = Vector3.new(2, 1, 2); seat.Color = C.ink; seat.Parent = model
+		local x = i == 1 and -1.7 or (i % 2 == 0 and 1.7 or -1.7)
+		local z = i == 1 and -3 or (i &lt;= 3 and 0 or 3)
+		weld(seat, CFrame.new(x, 1.1, z)); if i == 1 then driver = seat; seat.HeadsUpDisplay = true end
+	end
+	for _, x in ipairs({-3.6, 3.6}) do
+		for _, z in ipairs({-3.8, 3.8}) do
+			local wheel = part(model, &quot;Wheel&quot;, Vector3.new(1, 2.8, 2.8), Vector3.zero, C.ink)
+			wheel.Shape = Enum.PartType.Cylinder; wheel.CanCollide = false
+			weld(wheel, CFrame.new(x, -0.2, z))
+		end
+	end
+	local nose = part(model, &quot;Nose&quot;, Vector3.new(7, 1, 2), Vector3.zero, C.gold); weld(nose, CFrame.new(0, 1, -5))
+	World.label(nose, &quot;CREW GETAWAY\n5 seats · drive or walk to extraction&quot;, C.gold, 75)
+	model.PrimaryPart = chassis; chassis.Anchored = false; chassis:SetNetworkOwner(nil)
+	local attach = Instance.new(&quot;Attachment&quot;); attach.Parent = chassis
+	local upright = Instance.new(&quot;AlignOrientation&quot;); upright.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	upright.Attachment0 = attach; upright.MaxTorque = 1000000; upright.Responsiveness = 12; upright.Parent = chassis
+	local car = {model = model, chassis = chassis, seat = driver, upright = upright, yaw = math.pi/2, origin = origin}
+	table.insert(w.cars, car)
+	return car
+end
+
+World.colors = C
+return World
+</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX14"><Properties><string name="Name">StarterPlayer</string><float name="CameraMaxZoomDistance">45</float><float name="CameraMinZoomDistance">5</float></Properties><Item class="StarterPlayerScripts" referent="RBX13"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX12"><Properties><string name="Name">HUD</string><ProtectedString name="Source">local Players = game:GetService(&quot;Players&quot;)
+local ReplicatedStorage = game:GetService(&quot;ReplicatedStorage&quot;)
+local UserInputService = game:GetService(&quot;UserInputService&quot;)
+local GuiService = game:GetService(&quot;GuiService&quot;)
+local MarketplaceService = game:GetService(&quot;MarketplaceService&quot;)
+local player = Players.LocalPlayer
+local Shared = ReplicatedStorage:WaitForChild(&quot;Glasshouse&quot;)
+local Config = require(Shared:WaitForChild(&quot;Config&quot;))
+local net = Shared:WaitForChild(&quot;Net&quot;)
+local command = net:WaitForChild(&quot;Command&quot;)
+local stateEvent = net:WaitForChild(&quot;State&quot;)
+local toastEvent = net:WaitForChild(&quot;Toast&quot;)
+local C = {bg = Color3.fromRGB(16, 26, 38), panel = Color3.fromRGB(25, 40, 54), mint = Color3.fromRGB(98, 238, 201), muted = Color3.fromRGB(168, 186, 198), white = Color3.fromRGB(238, 243, 235), gold = Color3.fromRGB(255, 194, 103), red = Color3.fromRGB(255, 126, 123)}
+local gui = Instance.new(&quot;ScreenGui&quot;); gui.Name = &quot;GlasshouseHUD&quot;; gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = player:WaitForChild(&quot;PlayerGui&quot;)
+local state, mode, catalogOpen, dismissed = nil, &quot;Shuffle&quot;, false, false
+local buttons, priceCache = {}, {}
+
+local function frame(parent, size, position, color)
+	local f = Instance.new(&quot;Frame&quot;); f.Size = size; f.Position = position; f.BackgroundColor3 = color or C.panel
+	f.BorderSizePixel = 0; f.Parent = parent
+	local corner = Instance.new(&quot;UICorner&quot;); corner.CornerRadius = UDim.new(0, 10); corner.Parent = f
+	return f
+end
+local function label(parent, text, size, position, color, fontSize)
+	local t = Instance.new(&quot;TextLabel&quot;); t.Size = size; t.Position = position
+	t.BackgroundTransparency = 1; t.Text = text; t.TextColor3 = color or C.white
+	t.Font = Enum.Font.Gotham; t.TextSize = fontSize or 15; t.TextWrapped = true
+	t.TextXAlignment = Enum.TextXAlignment.Left; t.TextYAlignment = Enum.TextYAlignment.Center; t.Parent = parent
+	return t
+end
+local function button(parent, text, size, position, callback, primary)
+	local b = Instance.new(&quot;TextButton&quot;); b.Size = size; b.Position = position
+	b.BackgroundColor3 = primary and C.mint or C.panel; b.TextColor3 = primary and C.bg or C.white
+	b.Text = text; b.Font = Enum.Font.GothamBold; b.TextSize = 15; b.TextWrapped = true; b.BorderSizePixel = 0
+	b.AutoButtonColor = true; b.Selectable = true; b.Parent = parent
+	local corner = Instance.new(&quot;UICorner&quot;); corner.CornerRadius = UDim.new(0, 8); corner.Parent = b
+	b.Activated:Connect(callback); table.insert(buttons, b)
+	return b
+end
+
+local top = frame(gui, UDim2.new(1, -32, 0, 74), UDim2.fromOffset(16, 12), C.bg)
+local brand = label(top, Config.Title, UDim2.new(0.45, 0, 0, 31), UDim2.fromOffset(15, 7), C.mint, 23)
+brand.Font = Enum.Font.GothamBlack
+local tagline = label(top, &quot;AURORA EXCHANGE  /  1–5 CREW&quot;, UDim2.new(0.55, 0, 0, 21), UDim2.fromOffset(15, 40), C.muted, 12)
+local timer = label(top, &quot;08:00&quot;, UDim2.fromOffset(92, 30), UDim2.new(1, -205, 0, 6), C.white, 24)
+timer.Font = Enum.Font.GothamBold
+local heatText = label(top, &quot;HEAT 0&quot;, UDim2.fromOffset(95, 23), UDim2.new(1, -205, 0, 39), C.gold, 13)
+button(top, &quot;Brief / B&quot;, UDim2.fromOffset(92, 48), UDim2.new(1, -105, 0, 13), function() dismissed = not dismissed; catalogOpen = false end)
+
+local tracker = frame(gui, UDim2.fromOffset(310, 156), UDim2.fromOffset(16, 96), C.bg)
+local stage = label(tracker, &quot;CONTRACT READY&quot;, UDim2.new(1, -24, 0, 24), UDim2.fromOffset(12, 10), C.mint, 13)
+stage.Font = Enum.Font.GothamBold
+local goal = label(tracker, &quot;Start at the crew safehouse&quot;, UDim2.new(1, -24, 0, 54), UDim2.fromOffset(12, 38), C.white, 18)
+local detail = label(tracker, &quot;Every role can use every tool.&quot;, UDim2.new(1, -24, 0, 42), UDim2.fromOffset(12, 100), C.muted, 13)
+
+local crewPanel = frame(gui, UDim2.fromOffset(248, 166), UDim2.new(1, -264, 0, 96), C.bg)
+label(crewPanel, &quot;CREW CHANNEL&quot;, UDim2.new(1, -24, 0, 24), UDim2.fromOffset(12, 8), C.mint, 12)
+local crewText = label(crewPanel, &quot;&quot;, UDim2.new(1, -24, 1, -40), UDim2.fromOffset(12, 36), C.white, 13)
+crewText.TextYAlignment = Enum.TextYAlignment.Top
+
+local actionBar = frame(gui, UDim2.new(0.6, 0, 0, 62), UDim2.new(0.2, 0, 1, -92), C.bg)
+local actionText = label(actionBar, &quot;E / X / tap prompt · stay nearby to complete&quot;, UDim2.new(1, -24, 0, 31), UDim2.fromOffset(12, 6), C.white, 14)
+actionText.TextXAlignment = Enum.TextXAlignment.Center
+local progressBg = frame(actionBar, UDim2.new(1, -24, 0, 5), UDim2.fromOffset(12, 45), C.panel)
+local progress = frame(progressBg, UDim2.fromScale(0, 1), UDim2.fromScale(0, 0), C.mint)
+local toast = label(gui, &quot;&quot;, UDim2.new(0.8, 0, 0, 66), UDim2.new(0.1, 0, 1, -170), C.gold, 17)
+toast.TextXAlignment = Enum.TextXAlignment.Center; toast.TextStrokeTransparency = 0.2
+local toastRevision = 0
+toastEvent.OnClientEvent:Connect(function(message)
+	if type(message) ~= &quot;string&quot; then return end
+	toastRevision += 1; local revision = toastRevision; toast.Text = message
+	task.delay(5, function() if toastRevision == revision then toast.Text = &quot;&quot; end end)
+end)
+
+local modal = frame(gui, UDim2.fromOffset(540, 490), UDim2.fromScale(0.5, 0.52), C.bg)
+modal.AnchorPoint = Vector2.new(0.5, 0.5)
+local header = label(modal, &quot;THE AURORA EXCHANGE&quot;, UDim2.new(1, -40, 0, 34), UDim2.fromOffset(20, 14), C.mint, 21)
+header.Font = Enum.Font.GothamBlack
+local subtitle = label(modal, &quot;RECOVER THE LIGHT. WRITE YOUR OWN EXIT.&quot;, UDim2.new(1, -40, 0, 30), UDim2.fromOffset(20, 50), C.muted, 12)
+local scroll = Instance.new(&quot;ScrollingFrame&quot;); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+scroll.Position = UDim2.fromOffset(20, 86); scroll.Size = UDim2.new(1, -40, 1, -160)
+scroll.ScrollBarThickness = 4; scroll.ScrollBarImageColor3 = C.mint; scroll.CanvasSize = UDim2.fromOffset(0, 310); scroll.Parent = modal
+local briefing = label(scroll, &quot;&quot;, UDim2.new(1, -8, 0, 280), UDim2.fromOffset(0, 0), C.white, 16)
+briefing.TextYAlignment = Enum.TextYAlignment.Top; briefing.LineHeight = 1.15
+local catalog = Instance.new(&quot;Frame&quot;); catalog.Size = UDim2.new(1, -8, 0, 460); catalog.BackgroundTransparency = 1; catalog.Visible = false; catalog.Parent = scroll
+local catalogRows = {}
+for i, item in ipairs(Config.Catalog) do
+	local row = frame(catalog, UDim2.new(1, 0, 0, 66), UDim2.fromOffset(0, (i - 1) * 74))
+	local chip = frame(row, UDim2.fromOffset(10, 42), UDim2.fromOffset(10, 12), Color3.fromRGB(unpack(item.Color)))
+	chip.Name = &quot;Color&quot;
+	label(row, item.Name, UDim2.new(1, -140, 0, 25), UDim2.fromOffset(30, 8), C.white, 15)
+	local caption = label(row, item.Kind .. &quot; / preview&quot;, UDim2.new(1, -140, 0, 24), UDim2.fromOffset(30, 33), C.muted, 12)
+	local b = button(row, &quot;Preview&quot;, UDim2.fromOffset(100, 46), UDim2.new(1, -110, 0, 10), function()
+		if not state then return end
+		if state.entitlements[item.Id] then command:FireServer(&quot;Equip&quot;, item.Id)
+		elseif state.commerce and item.PassId &gt; 0 and priceCache[item.Id] then command:FireServer(&quot;Buy&quot;, item.Id)
+		else toast.Text = type(item.EarnedXP) == &quot;number&quot; and (&quot;Earn &quot; .. item.EarnedXP .. &quot; total XP to keep this cosmetic.&quot;) or &quot;Preview only. Robux purchasing is disabled.&quot;; toastRevision += 1 end
+	end)
+	catalogRows[item.Id] = {caption = caption, button = b}
+end
+local readyButton = button(modal, &quot;Ready&quot;, UDim2.new(0.25, -16, 0, 46), UDim2.new(0, 20, 1, -60), function() command:FireServer(&quot;Ready&quot;) end)
+local startButton = button(modal, &quot;Start run&quot;, UDim2.new(0.31, -12, 0, 46), UDim2.new(0.25, 8, 1, -60), function() command:FireServer(&quot;Start&quot;, mode) end, true)
+local modeButton
+modeButton = button(modal, &quot;Shuffle&quot;, UDim2.new(0.22, -10, 0, 46), UDim2.new(0.56, 4, 1, -60), function()
+	mode = mode == &quot;Shuffle&quot; and &quot;Daily&quot; or &quot;Shuffle&quot;; modeButton.Text = mode
+end)
+button(modal, &quot;Looks&quot;, UDim2.new(0.22, -20, 0, 46), UDim2.new(0.78, 0, 1, -60), function() catalogOpen = not catalogOpen; scroll.CanvasPosition = Vector2.zero end)
+
+local function timeString(seconds)
+	return string.format(&quot;%02d:%02d&quot;, math.floor(seconds / 60), seconds % 60)
+end
+local function render(data)
+	state = data
+	timer.Text = timeString(data.timeLeft)
+	heatText.Text = (data.alarmed and &quot;LOCKDOWN &quot; or &quot;HEAT &quot;) .. data.heat
+	heatText.TextColor3 = data.heat &gt;= 75 and C.red or C.gold
+	tagline.Text = &quot;AURORA EXCHANGE  /  &quot; .. #data.roster .. &quot; OF 5 CREW&quot;
+	local lines = {}
+	for _, m in ipairs(data.roster) do
+		table.insert(lines, (m.id == data.host and &quot;◆ &quot; or &quot;• &quot;) .. m.name .. (m.captured and &quot; [RECOVER]&quot; or &quot;&quot;) .. &quot;\n  &quot; .. (data.status == &quot;Active&quot; and m.role or (m.ready and &quot;Ready&quot; or &quot;Choosing loadout&quot;)))
+	end
+	crewText.Text = table.concat(lines, &quot;\n&quot;)
+	stage.Text = data.status == &quot;Active&quot; and (&quot;CONTRACT / &quot; .. string.upper(data.mode) .. &quot; &quot; .. data.seed) or &quot;CONTRACT / &quot; .. string.upper(data.status)
+	if data.status == &quot;Lobby&quot; then goal.Text = &quot;Your crew. Your approach.&quot;; detail.Text = &quot;Solo works. Every tool is included.&quot;
+	elseif data.status ~= &quot;Active&quot; then goal.Text = data.result or &quot;Contract complete&quot;; detail.Text = &quot;+&quot; .. data.reward .. &quot; XP · retries are free&quot;
+	elseif not data.member then goal.Text = &quot;Joining the next crew&quot;; detail.Text = &quot;This run is underway. Explore the safehouse.&quot;
+	elseif data.member.captured then goal.Text = &quot;Recover at the coral pad&quot;; detail.Text = &quot;Free re-entry costs 15 mission seconds.&quot;
+	elseif not data.member.entered then goal.Text = &quot;Choose one of three entrances&quot;; detail.Text = data.watchedEntrance .. &quot; is watched: +12 heat.&quot;
+	elseif data.core == &quot;Carried&quot; then
+		goal.Text = data.carrier == player.UserId and &quot;Get the core to extraction&quot; or &quot;Cover the core carrier&quot;
+		detail.Text = (data.heat &gt;= 75 and &quot;Tram closed. &quot; or &quot;Tram open. &quot;) .. (data.curator == &quot;Released&quot; and &quot;Canal open. &quot; or &quot;&quot;) .. &quot;Tunnel always open.&quot;
+	elseif data.core == &quot;Dropped&quot; then goal.Text = &quot;Recover the dropped core&quot;; detail.Text = &quot;Find the mint CORE marker in the gallery.&quot;
+	elseif data.vaultOpen then goal.Text = &quot;Take the Aurora core&quot;; detail.Text = &quot;The &quot; .. data.vault .. &quot; vault is open.&quot;
+	else goal.Text = &quot;Signals &quot; .. data.signals .. &quot;/&quot; .. data.needed .. &quot;  ·  &quot; .. data.vault .. &quot; vault&quot;
+		detail.Text = data.powerOff and &quot;Light grid down. Finish signals, then open quietly.&quot; or &quot;Cut the light grid. Or force the vault: +65 heat.&quot;
+	end
+	if data.job then
+		actionText.Text = data.job.text .. &quot;  &quot; .. string.format(&quot;%.1fs&quot;, data.job.remaining)
+		progress.Size = UDim2.fromScale(math.clamp(1 - data.job.remaining / data.job.duration, 0, 1), 1)
+		progress.BackgroundColor3 = C.mint
+	elseif data.exposure &gt; 0 then
+		actionText.Text = &quot;SPOTTED — break line of sight or use STASIS&quot;
+		progress.Size = UDim2.fromScale(data.exposure / 3.8, 1); progress.BackgroundColor3 = C.red
+	else
+		actionText.Text = data.member and (&quot;E / X / tap · stay nearby · stasis &quot; .. data.member.stasis .. &quot;/3&quot;) or &quot;E / X / tap a prompt · B for briefing&quot;
+		progress.Size = UDim2.fromScale(0, 1)
+	end
+	local isHost = data.host == player.UserId
+	startButton.Text = data.status == &quot;Active&quot; and &quot;In progress&quot; or (isHost and &quot;Start run&quot; or &quot;Leader starts&quot;)
+	startButton.Active = isHost and data.status ~= &quot;Active&quot;; startButton.AutoButtonColor = startButton.Active
+	startButton.BackgroundColor3 = startButton.Active and C.mint or C.panel
+	local myReady = false
+	for _, m in ipairs(data.roster) do if m.id == player.UserId then myReady = m.ready end end
+	readyButton.Text = myReady and &quot;Ready ✓&quot; or &quot;Ready&quot;
+	if data.status == &quot;Active&quot; then
+		briefing.Text = &quot;THE PLAN\n\n1  Pick an entrance. The watched route adds heat.\n2  Sync &quot; .. data.needed .. &quot; signals + cut the light grid.\n3  Open the &quot; .. data.vault .. &quot; vault, or force it for +65 heat.\n4  Take the core. Leave through the front getaway gate.\n5  Drive or walk to an exit. Gather the crew within 20 studs.\n\nRelease the curator for the canal route. Capture gains a signal but adds heat. Red patrol lines show direction; cover breaks sight. Three free stasis charges reset each run.\n\nTRAM: northeast coast, closes at 75 heat.\nCANAL: northwest coast, requires release.\nTUNNEL: west safehouse road, always available.&quot;
+	else
+		briefing.Text = (data.result and (data.result .. &quot;\n+&quot; .. data.reward .. &quot; XP this run\n\n&quot;) or &quot;A stolen light core. One island. Three ways in.\n\n&quot;) .. &quot;Start SOLO, or bring up to four partners. Partners choose Ready; the crew leader starts. Roles guide teamwork — anyone can complete every objective.\n\nSHUFFLE changes the watched entrance, vault and patrol start. DAILY repeats today's UTC contract. No simultaneous switches.\n\nWASD / thumbstick: move or drive\nE / gamepad X / tap: interact\nF / gamepad Y: alternative choice\nSpace / jump: leave a vehicle\nB: open or close this briefing\n\n&quot; .. data.xp .. &quot; XP · &quot; .. data.wins .. &quot; escapes\nProgress: &quot; .. data.saveStatus .. &quot;\nLocal Studio progress resets when the session stops.\n\nLooks are optional. Essential tools and retries are free. Paid looks, when eventually enabled, stay owned after failure.&quot;
+	end
+	for _, item in ipairs(Config.Catalog) do
+		local row = catalogRows[item.Id]
+		local owned = data.entitlements[item.Id] == true
+		row.caption.Text = owned and (item.Kind .. &quot; / permanently unlocked&quot;) or (type(item.EarnedXP) == &quot;number&quot; and (item.EarnedXP .. &quot; total XP&quot;) or &quot;Robux cosmetic / preview only&quot;)
+		row.button.Text = owned and ((data.equipped == item.Id or data.decor == item.Id) and &quot;Equipped&quot; or &quot;Equip&quot;) or &quot;Preview&quot;
+		if not owned and data.commerce and item.PassId &gt; 0 and priceCache[item.Id] then row.button.Text = &quot;R$ &quot; .. priceCache[item.Id] end
+	end
+end
+stateEvent.OnClientEvent:Connect(render)
+
+local lastStatus
+game:GetService(&quot;RunService&quot;).RenderStepped:Connect(function()
+	local camera = workspace.CurrentCamera; if not camera then return end
+	local viewport = camera.ViewportSize
+	local compact = viewport.X &lt; 760
+	crewPanel.Visible = not compact
+	tracker.Size = UDim2.fromOffset(compact and math.min(310, viewport.X - 32) or 310, compact and 136 or 156)
+	detail.Position = UDim2.fromOffset(12, compact and 87 or 100)
+	brand.TextSize = compact and 17 or 23
+	tagline.TextSize = compact and 10 or 12
+	timer.Position = UDim2.new(1, compact and -185 or -205, 0, 6); timer.TextSize = compact and 20 or 24
+	heatText.Position = UDim2.new(1, compact and -185 or -205, 0, 39)
+	modal.Size = UDim2.fromOffset(math.min(540, viewport.X - 30), math.min(490, viewport.Y - 105))
+	actionBar.Size = UDim2.new(compact and 0.82 or 0.6, 0, 0, 62)
+	actionBar.Position = UDim2.new(compact and 0.09 or 0.2, 0, 1, compact and -122 or -92)
+	if state and lastStatus ~= state.status then
+		dismissed = state.status == &quot;Active&quot;; catalogOpen = false; lastStatus = state.status
+	end
+	modal.Visible = not dismissed
+	briefing.Visible = not catalogOpen; catalog.Visible = catalogOpen
+	header.Text = catalogOpen and &quot;CREW LOOKS&quot; or &quot;THE AURORA EXCHANGE&quot;
+	subtitle.Text = catalogOpen and &quot;STYLE ONLY · NO PAID ADVANTAGE · OWN IT ONCE&quot; or &quot;RECOVER THE LIGHT. WRITE YOUR OWN EXIT.&quot;
+	scroll.CanvasSize = UDim2.fromOffset(0, catalogOpen and 450 or (state and state.status == &quot;Active&quot; and 450 or 520))
+	briefing.Size = UDim2.new(1, -8, 0, scroll.CanvasSize.Y.Offset)
+end)
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.B or input.KeyCode == Enum.KeyCode.ButtonSelect then
+		dismissed = not dismissed
+		if not dismissed and UserInputService.GamepadEnabled then GuiService.SelectedObject = readyButton end
+	elseif input.KeyCode == Enum.KeyCode.Backspace then command:FireServer(&quot;Cancel&quot;) end
+end)
+-- No hardcoded Robux prices. Only query configured passes after an explicitly enabled release.
+task.spawn(function()
+	if not Config.CommerceEnabled then return end
+	for _, item in ipairs(Config.Catalog) do
+		if item.PassId &gt; 0 then
+			local ok, info = pcall(MarketplaceService.GetProductInfoAsync, MarketplaceService, item.PassId, Enum.InfoType.GamePass)
+			if ok and info.IsForSale and type(info.PriceInRobux) == &quot;number&quot; then priceCache[item.Id] = info.PriceInRobux end
+		end
+	end
+end)
+command:FireServer(&quot;Sync&quot;)
+</ProtectedString></Properties></Item></Item></Item><Item class="Lighting" referent="RBX18"><Properties><string name="Name">Lighting</string><float name="ClockTime">18.4</float></Properties></Item></roblox>

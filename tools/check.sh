@@ -12,9 +12,11 @@ status=0
 echo "== rojo sourcemap"
 rojo sourcemap default.project.json -o sourcemap.json || status=1
 echo "== luau-lsp analyze (type check against Roblox API)"
-luau-lsp analyze --definitions "$DEFS" --sourcemap sourcemap.json --ignore "tests/**" --ignore "tools/**" src || status=1
+luau-lsp analyze --definitions "$DEFS" --sourcemap sourcemap.json --ignore "tools/**" src tests/engine || status=1
 echo "== selene lint"
 selene src tests tools/run-tests.luau || status=1
+echo "== engine-test place builds"
+rojo build engine-test.project.json -o build/BlackoutBay-EngineTest.rbxl >/dev/null || status=1
 echo "== logic tests (luau CLI)"
 luau tools/run-tests.luau || status=1
 if [ $status -eq 0 ]; then echo "ALL CHECKS PASSED"; else echo "CHECKS FAILED"; fi

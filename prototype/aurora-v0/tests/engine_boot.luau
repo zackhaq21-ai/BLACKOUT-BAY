@@ -1,0 +1,6 @@
+assert(game:GetService("RunService"):IsStudio(), "Studio only")
+assert(game.ReplicatedStorage:FindFirstChild("Glasshouse"), "Expected Glasshouse place")
+local rules = require(game.ReplicatedStorage.Glasshouse.Rules)
+assert(rules.required(1) == 2 and rules.required(5) == 4)
+local studioTest = game:GetService("StudioTestService")
+print("GLASSHOUSE_ENGINE_BOOT_OK", typeof(studioTest.ExecutePlayModeAsync), typeof(studioTest.ExecuteMultiplayerTestAsync))

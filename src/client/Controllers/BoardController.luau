@@ -19,6 +19,7 @@ local routes = {}
 local open = false
 local pendingShares = nil
 local hideout = nil -- last HideoutState
+local profileState = nil -- last ProfileState
 local targets = {}
 local tabs = {}
 local currentTab = "Job"
@@ -164,12 +165,13 @@ local function build()
 	local jobTab = Make.frame(panel, "JobTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
 	local hideoutTab = Make.frame(panel, "HideoutTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
 	local raidTab = Make.frame(panel, "RaidTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
-	tabs = { Job = jobTab, Hideout = hideoutTab, Raids = raidTab }
-	for i, name in ipairs({ "Job", "Hideout", "Raids" }) do
+	local looksTab = Make.frame(panel, "LooksTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
+	tabs = { Job = jobTab, Hideout = hideoutTab, Raids = raidTab, Looks = looksTab }
+	for i, name in ipairs({ "Job", "Hideout", "Raids", "Looks" }) do
 		local b = Make.ghostButton(tabBar, "Tab" .. name, name, function()
 			BoardController.showTab(name)
 		end)
-		b.Size = UDim2.new(0, 120, 1, 0)
+		b.Size = UDim2.new(0, 100, 1, 0)
 		b.LayoutOrder = i
 		refs["tab" .. name] = b
 	end
@@ -266,7 +268,7 @@ local function build()
 	-- Raids tab: target list
 	local rl = Make.frame(raidTab, "List", UDim2.new(1, 0, 1, 0), UDim2.new(), Theme.Panel, 1)
 	Make.list(rl, 6)
-	Make.label(rl, "Head", "Everyone can see what you have. A raid takes a share of the stash above the protected floor; the owner's defences and the police push back. Online owners are raided at their own pier; others at the Breakwater Lockup.", Theme.Small, Theme.Muted)
+	Make.label(rl, "Head", "Everyone can see what you have. A cracked safe gives up the owner's ENTIRE stash; their defences and the police push back, and anything you leave inside goes back to them. Online owners are raided at their own pier; others at the Breakwater Lockup.", Theme.Small, Theme.Muted)
 	local ts = Instance.new("ScrollingFrame")
 	ts.Size = UDim2.new(1, 0, 1, -90)
 	ts.BackgroundTransparency = 1
@@ -280,7 +282,62 @@ local function build()
 	refs.refreshTargets = Make.ghostButton(rl, "Refresh", "Refresh targets", function()
 		hideoutSend("listTargets")
 	end)
+
+	-- Looks tab: earned/owned suits. Style only; never a gameplay advantage.
+	local lk = Make.frame(looksTab, "Looks", UDim2.new(1, 0, 1, 0), UDim2.new(), Theme.Panel, 1)
+	Make.list(lk, 6)
+	refs.looksHead = Make.label(lk, "Head", "", Theme.Body, Theme.Text, true)
+	Make.label(lk, "Note", "Looks are permanent once earned or owned. Raids and lost runs never take them. No paid look changes stats, hitboxes or visibility. Purchasing is disabled in this build.", Theme.Small, Theme.Muted)
+	local ls = Instance.new("ScrollingFrame")
+	ls.Size = UDim2.new(1, 0, 1, -70)
+	ls.BackgroundTransparency = 1
+	ls.BorderSizePixel = 0
+	ls.ScrollBarThickness = 6
+	ls.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	ls.CanvasSize = UDim2.new()
+	ls.Parent = lk
+	Make.list(ls, 4)
+	refs.looks = ls
 	BoardController.showTab("Job")
+end
+
+local function renderLooks()
+	if not profileState then
+		return
+	end
+	local ps = profileState
+	refs.looksHead.Text = string.format("%d XP · %d escapes · %d jobs%s", ps.xp or 0, ps.wins or 0, ps.jobs or 0, if ps.saveable then "" else " · NOT SAVING this session")
+	for _, ch in ipairs(refs.looks:GetChildren()) do
+		if ch:IsA("Frame") then
+			ch:Destroy()
+		end
+	end
+	for i, item in ipairs(ps.catalog or {}) do
+		local row = Make.frame(refs.looks, "L" .. i, UDim2.new(1, -8, 0, 56), UDim2.new(), Theme.PanelAlt, 0.3)
+		row.LayoutOrder = i
+		Make.corner(row, 8)
+		Make.padding(row, 6)
+		local chip = Make.frame(row, "Chip", UDim2.new(0, 10, 1, 0), UDim2.new(), Color3.fromRGB(item.Color[1], item.Color[2], item.Color[3]), 0)
+		Make.corner(chip, 4)
+		local owned = ps.entitlements and ps.entitlements[item.Id] == true
+		local equipped = ps.equipped == item.Id
+		local caption = if owned then "permanently yours" elseif type(item.EarnedXP) == "number" then string.format("earn %d XP", item.EarnedXP) else "Robux look · preview only"
+		local l = Make.label(row, "Name", string.format("<b>%s</b>  %s · %s", item.Name, item.Kind, caption), Theme.Body, if owned then Theme.Text else Theme.Muted)
+		l.Position = UDim2.new(0, 18, 0, 0)
+		l.Size = UDim2.new(1, -140, 1, 0)
+		l.TextYAlignment = Enum.TextYAlignment.Center
+		l.AutomaticSize = Enum.AutomaticSize.None
+		local b = Make.button(row, "Act", if equipped then "Equipped" elseif owned then "Equip" else "Preview", if owned and not equipped then Theme.Accent else Theme.PanelAlt, function()
+			if owned then
+				Net.event("ProfileRequest"):FireServer({ action = "equip", item = item.Id })
+			else
+				Net.event("ProfileRequest"):FireServer({ action = "buy", item = item.Id })
+			end
+		end)
+		b.Size = UDim2.new(0, 110, 0, 40)
+		b.Position = UDim2.new(1, -110, 0, 2)
+		b.TextColor3 = if owned and not equipped then Theme.Panel else Theme.Text
+	end
 end
 
 function BoardController.showTab(name: string)
@@ -297,6 +354,8 @@ function BoardController.showTab(name: string)
 		hideoutSend("refresh")
 	elseif name == "Raids" then
 		hideoutSend("listTargets")
+	elseif name == "Looks" then
+		Net.event("ProfileRequest"):FireServer({ action = "refresh" })
 	end
 end
 
@@ -306,7 +365,7 @@ local function renderHideout()
 	end
 	local h = hideout
 	refs.stashLine.Text = string.format("Stash: %s", fmt(h.stash))
-	refs.exposedLine.Text = string.format("A raid could take %s right now (first %s is protected). Banked money can't be raided.", fmt(h.exposed or 0), fmt(h.floor or 0))
+	refs.exposedLine.Text = if (h.stash or 0) > 0 then string.format("HIGH STAKES: a cracked safe takes ALL of it (%s). Your defences and the police are the only protection%s.", fmt(h.exposed or 0), if h.bankingEnabled then "; banked money can't be raided" else "") else "Your stash is empty. Everything you earn lands here, and a raid can take all of it."
 	refs.tierLine.Text = string.format("Hideout tier %d / %d", h.tier or 0, h.maxTier or 6)
 	if h.nextCost then
 		refs.upgrade.Text = string.format("Upgrade to tier %d — %s (%s)", (h.tier or 0) + 1, fmt(h.nextCost), h.nextDesc or "")
@@ -314,7 +373,8 @@ local function renderHideout()
 	else
 		refs.upgrade.Visible = false
 	end
-	refs.bankNote.Text = string.format("Bank stash into your wallet: %d%% fee, 2 min cooldown.", math.floor((h.bankFee or 0) * 100))
+	refs.bankNote.Text = if h.bankingEnabled then string.format("Bank stash into your wallet: %d%% fee, 2 min cooldown. The wallet is never raided.", math.floor((h.bankFee or 0) * 100)) else "Banking is off on this server."
+	refs.bankBox.Parent.Visible = h.bankingEnabled ~= false
 	refs.backendNote.Text = if h.backend == "memory" then "No DataStore in this session: the stash lives on this server only." else ""
 	refs.reportsTitle.Text = string.format("Raid reports (%d unread)", h.unread or 0)
 	for _, ch in ipairs(refs.reports:GetChildren()) do
@@ -361,7 +421,7 @@ local function renderTargets()
 		local l = Make.label(row, "Name", string.format("<b>%s</b>  stash %s · tier %s · %s", tg.name, fmt(tg.stash), tostring(tg.tier or "?"), if tg.online then "online: " .. tostring(tg.where) else "away: " .. tostring(tg.where)), Theme.Body, Theme.Text)
 		l.Size = UDim2.new(1, -120, 0, 20)
 		l.AutomaticSize = Enum.AutomaticSize.None
-		local l2 = Make.label(row, "Exposed", string.format("Up to %s on the table%s", fmt(tg.exposed or 0), if tg.raidActive then " · being raided now" else ""), Theme.Small, if (tg.exposed or 0) > 0 then Theme.Gold else Theme.Muted)
+		local l2 = Make.label(row, "Exposed", string.format("Whole stash on the table: %s%s", fmt(tg.exposed or 0), if tg.raidActive then " · being raided now" else ""), Theme.Small, if (tg.exposed or 0) > 0 then Theme.Gold else Theme.Muted)
 		l2.Position = UDim2.new(0, 0, 0, 22)
 		l2.Size = UDim2.new(1, -120, 0, 18)
 		l2.AutomaticSize = Enum.AutomaticSize.None
@@ -409,6 +469,8 @@ function BoardController.open()
 		renderHideout()
 	elseif currentTab == "Raids" then
 		renderTargets()
+	elseif currentTab == "Looks" then
+		renderLooks()
 	end
 	if UserInputService.GamepadEnabled then
 		GuiService.SelectedObject = refs.start
@@ -435,6 +497,12 @@ function BoardController.init(bootstrap)
 		hideout = h
 		if open and currentTab == "Hideout" then
 			renderHideout()
+		end
+	end)
+	Net.event("ProfileState").OnClientEvent:Connect(function(ps)
+		profileState = ps
+		if open and currentTab == "Looks" then
+			renderLooks()
 		end
 	end)
 	Net.event("RaidTargets").OnClientEvent:Connect(function(d)

@@ -1,0 +1,28 @@
+{
+  "name": "BlackoutBay-EngineTest",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": { "$path": "src/server" },
+      "EngineHook": { "$path": "tests/engine/hook.server.luau" },
+      "EngineDriver": { "$path": "tests/engine/driver.server.luau" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": { "CharacterWalkSpeed": 16, "EnableMouseLockOption": true },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": { "$path": "src/client" },
+        "EngineDriver": { "$path": "tests/engine/driver.client.luau" }
+      }
+    },
+    "Workspace": { "$className": "Workspace", "$properties": { "FilteringEnabled": true } },
+    "Lighting": { "$className": "Lighting", "$properties": { "ClockTime": 19.6, "Technology": "ShadowMap" } },
+    "SoundService": { "$className": "SoundService", "$properties": { "RespectFilteringEnabled": true } }
+  }
+}

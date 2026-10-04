@@ -1,4 +1,4 @@
-# Test Results — milestone `m3-hideouts` (2026-10-04)
+# Test Results — review branch `claude/review-m4-reconciliation` (2026-10-04)
 
 Verification levels: **SOURCE IMPLEMENTED** → **AUTOMATED CHECKS PASSED** → **STUDIO PLAYTESTED** → **LIVE VERIFIED**.
 
@@ -7,13 +7,16 @@ This environment has no Roblox Studio and no Roblox network access. Everything b
 ## Automated checks (passed)
 | Check | Result |
 |---|---|
-| `luau-lsp analyze` against Roblox API definitions, whole `src/` | 0 errors |
+| `luau-lsp analyze` against Roblox API definitions, `src/` and `tests/engine/` | 0 errors |
 | Selene lint (`roblox.yml` globals, Luau mode) | 0 errors, 0 warnings |
-| Logic tests via the Luau CLI (`tools/run-tests.luau`) | 52 passed, 0 failed |
-| `rojo build` → `build/Glasshouse.rbxl` | built (130 KB) |
+| Logic tests via the Luau CLI (`tools/run-tests.luau`) | 55 passed, 0 failed |
+| `rojo build` → `build/BlackoutBay.rbxl` and `build/BlackoutBay-EngineTest.rbxl` | built |
 | Map invariants (roads on-island and axis aligned; buildings never overlap roads, reserved zones or each other; 6 spaced hideouts; one connected drivable road network; pedestrian lanes excluded from driving) | passed |
 
-Logic tests cover: loot identity and one-time delivery, hands-full and trunk capacity, trunk spills, arrest drops; payout split validation, forfeits and rounding; job phases, auto-close reasons, bounded log, "Busted/Clean/Loud/Empty" headlines; security escalation, sneaking rate, decay, lockdown timing, calm-down, camera/power windows; police heat levels, decay-only-when-unseen, vehicle recognition expiry; rate limiting; rare-car weekly cycle, 120 s break-in interruption, repeated steal-backs, weekly reset; bounty stacking, single payout, self/contributor/crewmate/cooldown rejection, refunds; road graph connectivity; stash exposure (floor, fraction, cap), bundle splitting, tier unlocks and crack/breaker times, bank fee; hideout record migration, deposit/upgrade/bank rules, the exclusive raid lock across servers and attackers (wrong holder cannot crack or release, expiry takeover, cooldown), owner blocked from banking/upgrading mid-raid, retention, report cap and unread count, minted bundles advancing a job.
+Logic tests cover: loot identity and one-time delivery, hands-full and trunk capacity, trunk spills, arrest drops; payout split validation, forfeits and rounding; job phases, auto-close reasons, bounded log, "Busted/Clean/Loud/Empty" headlines; security escalation, sneaking rate, decay, lockdown timing, calm-down, camera/power windows; police heat levels, decay-only-when-unseen, vehicle recognition expiry; rate limiting; rare-car weekly cycle, 120 s break-in interruption, repeated steal-backs, weekly reset; bounty stacking, single payout, self/contributor/crewmate/cooldown rejection, refunds; road graph connectivity; stash exposure (floor, fraction, cap), bundle splitting, tier unlocks and crack/breaker times, bank fee; hideout record migration, deposit/upgrade/bank rules, the exclusive raid lock across servers and attackers (wrong holder cannot crack or release, expiry takeover, cooldown), owner blocked from banking/upgrading mid-raid, retention, report cap and unread count, minted bundles advancing a job; full-exposure raids (no floor/fraction/cap) and one crack per lock; profile ops (run credited once, receipt replay, pass idempotent, equip requires ownership).
+
+## Native Studio scenarios (written, not yet run)
+`tests/engine/driver.server.luau` runs under StudioTestService for 1, 2 or 5 local clients: crew join by code, start job, front smash → alarm + heat, case cut and take, real client car input (> 20 studs), trunk stow/take, delivery, job close with stash payout and XP, free retry, arrest + release; with 2+ players: leave crew, raid the leader's live pier, server-timed crack, **full stash stolen**, every bundle picked up once and delivered, raid report with lost = stash, cooldown blocks a second raid, carrier disconnect. Evidence is written to `build/engine-results.txt` by `tools/verify-engine.ps1`. The prototype's own evidence for its baseline is in `prototype/aurora-v0/dist/`.
 
 ## Required journeys — status
 | Journey | Status |

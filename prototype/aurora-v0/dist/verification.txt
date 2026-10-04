@@ -1,0 +1,90 @@
+Glasshouse verification / 2026-10-03T20:17:06.2288931-04:00
+COMPILE PASS HUD.client.luau
+COMPILE PASS CommerceService.luau
+COMPILE PASS Main.server.luau
+COMPILE PASS ProfileModel.luau
+COMPILE PASS ProfileService.luau
+COMPILE PASS World.luau
+COMPILE PASS Config.luau
+COMPILE PASS Rules.luau
+PASS	1 player quiet mission sequentially completable by one member
+PASS	1 player force-vault fallback needs no simultaneous partners
+PASS	2 player quiet mission sequentially completable by one member
+PASS	2 player force-vault fallback needs no simultaneous partners
+PASS	3 player quiet mission sequentially completable by one member
+PASS	3 player force-vault fallback needs no simultaneous partners
+PASS	4 player quiet mission sequentially completable by one member
+PASS	4 player force-vault fallback needs no simultaneous partners
+PASS	5 player quiet mission sequentially completable by one member
+PASS	5 player force-vault fallback needs no simultaneous partners
+PASS	invalid crew sizes and duplicate IDs rejected
+PASS	daily seed deterministic but shuffle has distinct configurations
+PASS	quiet vault cannot open before both requirements
+PASS	spectator and pre-entry actions rejected
+PASS	unique signals and core prevent duplicate objective credit
+PASS	capture consequence, free solo recovery and core recovery
+PASS	disconnect carrier drops core and reassigns roles
+PASS	crew reduces 5 to 1 without impossible objective or role lock
+PASS	all disconnects end abandoned run
+PASS	curator decision branches have lasting consequences
+PASS	only carrier extracts and only nearby crew gets full reward
+PASS	timeout fails and new retry has clean mission state
+PASS	lockdown starts only once and cannot extend time
+PASS	receipt replay grants permanent cosmetic exactly once
+PASS	run reward idempotent and merged with existing purchased entitlement
+PASS	lost heist never removes owned paid cosmetic
+PASS	equipping requires owned catalog item and does not modify stats
+PASS	unknown save schemas cannot be replaced by defaults
+PASS	all purchase and production-save switches disabled
+RESULT	29	tests passed; pure Luau logic only, not a Roblox engine playtest.
+PASS	initial money, loot, permanent cosmetics and two-seat car invariants
+PASS	2m plus 2m contributions debit earned wallets into 4m escrow
+PASS	idempotent command replay and mismatched duplicate rejection
+PASS	optimistic revisions reject stale racing updates and wrong world
+PASS	defeat freezes escrow; late contributions reject; payout occurs once
+PASS	defeat requires adjudication and cannot drop another container's loot
+PASS	physical split creates exact portions in separate vehicles; parent retires
+PASS	invalid split never creates children; duplicate loot transfer rejects atomically
+PASS	taking unowned physical loot requires server transfer adjudication
+PASS	six shield and six laser tiers consume only earned balances
+PASS	offline raid snapshots defenses; reconnect cannot replace reserved stash
+PASS	raid transfers exactly supplied loot IDs; no implicit wipe
+PASS	all supplied stash loot may be taken without invented protected fraction
+PASS	defenses retain defeated intruder's explicit dropped earned loot
+PASS	invalid raid outcome leaves lease and every item intact
+PASS	rare original car heist completes once per world cycle, owned individually
+PASS	car break-in requires continuous validation and full 120 seconds
+PASS	same car may be re-stolen without creating another original heist
+PASS	simultaneous thieves cannot both win; drive-away invalidates theft
+PASS	weekly reset revokes owner, expires theft, returns same car and reopens once
+PASS	server downtime skips elapsed cycles without accumulating rare cars
+PASS	thief disconnect interrupts break-in; personal owner remains unchanged
+PASS	stolen-loot recovery transfers the exact original ID without duplication
+PASS	owner return log is bounded and contains each retained recent result
+PASS	audit detects lost paid cosmetics and currency/loot duplication
+PASS	100 alternating physical transfers conserve loot and reject stale pickup replay
+WORLD_ECONOMY_TESTS: 26 passed, 0 failed
+PASS	ten fallback police only while no human cops
+PASS	solo can escape harder NPC confinement sequentially
+PASS	human arrest requires counterplay and shorter solo escape
+PASS	joining cop does not erase existing NPC prison challenge
+PASS	crews cap at five and helper must be teammate
+PASS	blackout expires even if instigator disconnects and cannot chain
+PASS	vehicle recognition expires and cannot be evaded by faction switch
+PASS	decoys never hold real loot or mint currency
+PASS	convoy claim unique and stale intercept rejected
+PASS	leader disconnect elects online member and reconnect does not steal leadership
+PASS	leader crew change and police switch repair both membership directions
+PASS	failed move to a full crew preserves old membership and leader
+PASS	leave-rejoin preserves custody and rejects old session actions
+PASS	escape progress rejects stale revisions and previous detention IDs
+PASS	offline, detained, faction-switched and former crew helpers cannot progress jail
+PASS	same operation ID is exact replay only and stored payload is independent
+PASS	strict evidence rejects truthy substitutes without changing world
+PASS	convoy claim rejects stale revision, stale actor session, and rival duplicate
+PASS	arrest rejects previous target session and truthy NPC origin
+DISTRICT_RESULT	19	tests passed; state model only, no integrated cops/convoy gameplay.
+Built dist/BlackoutBay.rbxlx (78682 bytes, 8 native Luau scripts).
+XML PASS: 8 script sources match editable source exactly.
+PLACE SHA256 452E53E4AEB470372EBD33645DB6248E3D019CA9979324DF479662EE1173933B
+LIMIT: No Studio Play-mode, rendering, physics, or multiplayer verification in this tool run.

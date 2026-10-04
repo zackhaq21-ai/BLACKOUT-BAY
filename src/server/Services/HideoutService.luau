@@ -185,8 +185,9 @@ function HideoutService.pushState(player: Player)
 			reports = record.reports,
 			raidActive = HideoutRecord.isRaidActive(record, os.time()),
 			bankFee = Config.Hideout.BankFeeFraction,
+			bankingEnabled = Config.Hideout.BankingEnabled,
 			exposed = StashRules.exposed(Config.Hideout, record.stash),
-			floor = Config.Hideout.ProtectedFloor,
+			fullExposure = Config.Hideout.FullExposure,
 			backend = Store.backend,
 		})
 		if raided then
@@ -291,6 +292,10 @@ function HideoutService.handleRequest(player: Player, req)
 		end
 		HideoutService.pushState(player)
 	elseif action == "bank" then
+		if not Config.Hideout.BankingEnabled then
+			Comms.toast(player, "Banking is off: everything you earn stays in the stash.", "warn")
+			return
+		end
 		local amount = tonumber(req.amount)
 		if not amount or amount ~= math.floor(amount) or amount <= 0 then
 			return
@@ -322,7 +327,7 @@ function HideoutService.sendHome(player: Player)
 	local unit = HideoutService.unitOf(player)
 	local char = player.Character
 	if unit and char and char.PrimaryPart then
-		char:PivotTo(unit.spawn + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3)))
+		HideoutService.ctx.services.Movement.relocate(player, unit.spawn + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3)))
 	end
 end
 

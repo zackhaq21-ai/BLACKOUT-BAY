@@ -35,6 +35,21 @@ local function validPrompt(player: Player, prompt: ProximityPrompt): boolean
 	return (part.Position - root.Position).Magnitude <= range
 end
 
+-- Same validation as a real prompt trigger; used by the engine test hook so tests exercise the handlers.
+function InteractionService.dispatch(player: Player, prompt: ProximityPrompt): boolean
+	local tag = prompt:GetAttribute("Tag")
+	local fn = tag and handlers[tag]
+	if not fn or not validPrompt(player, prompt) then
+		return false
+	end
+	local ok, err = pcall(fn, player, prompt)
+	if not ok then
+		warn("[Interaction] " .. tostring(tag) .. " failed: " .. tostring(err))
+		return false
+	end
+	return true
+end
+
 function InteractionService.register(tag: string, fn)
 	handlers[tag] = fn
 end
@@ -143,6 +158,11 @@ function InteractionService.start()
 	Net.event("KeypadSubmit").OnServerEvent:Connect(function(player, req)
 		if allowed(player) and type(req) == "table" and type(req.code) == "string" and #req.code <= 8 then
 			S.Security.onKeypadSubmit(player, req.targetId, req.code)
+		end
+	end)
+	Net.event("ProfileRequest").OnServerEvent:Connect(function(player, req)
+		if allowed(player) then
+			S.Cosmetics.handleRequest(player, req)
 		end
 	end)
 	Net.event("HideoutRequest").OnServerEvent:Connect(function(player, req)

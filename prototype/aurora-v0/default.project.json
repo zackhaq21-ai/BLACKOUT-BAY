@@ -1,0 +1,9 @@
+{
+  "name": "BlackoutBay",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {"Glasshouse": {"$path": "src/shared"}},
+    "ServerScriptService": {"GlasshouseServer": {"$path": "src/server"}},
+    "StarterPlayer": {"StarterPlayerScripts": {"$path": "src/client"}}
+  }
+}

@@ -75,7 +75,7 @@ function ResultsController.show(r)
 	refs.headline.Text = r.headline or "Job closed"
 	refs.headline.TextColor3 = if (r.deliveredValue or 0) > 0 then Theme.Gold else Theme.Alarm
 	refs.reason.Text = string.format("%s · %d s · security peaked at %s%s", r.reason or "", math.floor(r.durationSeconds or 0), ({ [0] = "Quiet", [1] = "Suspicious", [2] = "Alert", [3] = "Lockdown" })[r.maxSecurityLevel or 0] or "?", if r.escalation then " (" .. r.escalation .. ")" else "")
-	refs.value.Text = "Delivered: " .. fmt(r.deliveredValue or 0)
+	refs.value.Text = "Delivered: " .. fmt(r.deliveredValue or 0) .. (if r.xp then string.format("   ·   +%d XP", r.xp) else "")
 	for _, ch in ipairs(refs.payouts:GetChildren()) do
 		if ch:IsA("TextLabel") then
 			ch:Destroy()

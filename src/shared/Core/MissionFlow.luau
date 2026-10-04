@@ -254,15 +254,24 @@ end
 -- Human-readable outcome used by the results screen.
 function MissionFlow.summary(self: MissionFlow): { headline: string, reason: string, deliveredValue: number, escalation: string?, maxSecurityLevel: number, log: { LogEntry } }
 	local j = self.job
+	-- Result tiers (naming carried over from the Studio-tested prototype): quiet pays best.
 	local headline
 	if j.deliveredValue > 0 then
-		headline = if j.maxSecurityLevel >= 2 then "Loud, but paid" else "Clean job"
+		if j.maxSecurityLevel >= 3 then
+			headline = "LAST LIGHT"
+		elseif j.maxSecurityLevel == 2 then
+			headline = "SMASH & DASH"
+		elseif j.maxSecurityLevel == 1 then
+			headline = "NARROW ESCAPE"
+		else
+			headline = "GHOST CREW"
+		end
 	elseif j.closeReason == "Crew arrested" then
-		headline = "Busted"
+		headline = "BUSTED"
 	elseif ORDER[j.phase] >= ORDER.LootTaken or j.closeReason == "Haul lost" then
-		headline = "Walked away empty"
+		headline = "WALKED AWAY EMPTY"
 	else
-		headline = "Called off"
+		headline = "CALLED OFF"
 	end
 	return {
 		headline = headline,

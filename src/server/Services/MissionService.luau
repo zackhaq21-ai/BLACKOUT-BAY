@@ -157,13 +157,24 @@ local function closeJob(crewId: string, reason: string)
 	table.sort(payoutRows, function(a, b)
 		return a.amount > b.amount
 	end)
+	local summary = flow:summary()
+	-- XP (one credit per job id, durable via ProfileOps): quiet, paid jobs earn the most
+	local Data = MissionService.ctx.services.Data
+	local C = Config.Commerce
+	local xp = C.XpEmpty
+	if flow.job.deliveredValue > 0 then
+		xp = C.XpDelivered + math.min(C.XpDeliveredCap, math.floor(flow.job.deliveredValue / 100) * C.XpPerHundredDelivered)
+		if summary.headline == "GHOST CREW" then
+			xp += C.XpGhostBonus
+		end
+	end
 	for _, key in ipairs(present) do
 		local p = playerByKey(key)
 		if p then
-			Economy.bumpStat(p, "jobs", 1)
+			Data.applyOp(p, { kind = "Run", id = flow.job.id, xp = xp, won = flow.job.deliveredValue > 0 })
+			MissionService.ctx.services.Cosmetics.push(p)
 		end
 	end
-	local summary = flow:summary()
 	EventLog.crew(crewId, string.format("Job closed (%s): %d delivered", reason, flow.job.deliveredValue), if flow.job.deliveredValue > 0 then "good" else "warn")
 	-- Results: what happened, what you kept, what you lost, what next
 	local lines = {}
@@ -179,6 +190,7 @@ local function closeJob(crewId: string, reason: string)
 		payouts = payoutRows,
 		lines = lines,
 		durationSeconds = (flow.job.closedAt or now()) - flow.job.startedAt,
+		xp = xp,
 		next = if job.raid then "Payouts went to your hideout stash. Bank some from the board's Hideout tab if you want it safe." else "Walk to the job board to run it again. Payouts sit in your stash: bank or spend on defences from the Hideout tab.",
 	}
 	for _, p in ipairs(job.crew.members) do

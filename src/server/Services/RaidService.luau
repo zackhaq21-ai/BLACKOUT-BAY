@@ -653,6 +653,17 @@ local function tickLasers(t: number)
 	end
 end
 
+-- Engine-test helper: jump a cracker's progress (the normal tick completes and mints on the next step).
+function RaidService.testSetCrack(player: Player, progress: number)
+	for _, state in pairs(units) do
+		if state.cracking[player] ~= nil then
+			state.cracking[player] = progress
+			return true
+		end
+	end
+	return false
+end
+
 function RaidService.init(ctx)
 	RaidService.ctx = ctx
 end

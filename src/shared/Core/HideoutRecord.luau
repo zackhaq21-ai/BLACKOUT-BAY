@@ -21,7 +21,7 @@ export type Record = {
 	version: number,
 	stash: number,
 	tier: number,
-	raid: { server: string, raider: string, raiderName: string, startedAt: number, expiresAt: number }?,
+	raid: { server: string, raider: string, raiderName: string, startedAt: number, expiresAt: number, cracked: boolean? }?,
 	lastRaidEndedAt: number,
 	lastBankAt: number,
 	reports: { Report },
@@ -135,7 +135,7 @@ function HideoutRecord.claimRaid(r: Record, server: string, raider: string, raid
 	if now - r.lastRaidEndedAt < cooldown then
 		return nil, string.format("raided recently (%d s)", math.ceil(cooldown - (now - r.lastRaidEndedAt)))
 	end
-	r.raid = { server = server, raider = raider, raiderName = raiderName, startedAt = now, expiresAt = now + maxSeconds }
+	r.raid = { server = server, raider = raider, raiderName = raiderName, startedAt = now, expiresAt = now + maxSeconds, cracked = false }
 	return r, nil
 end
 
@@ -148,6 +148,10 @@ function HideoutRecord.crack(r: Record, server: string, raider: string, exposed:
 	if not holdsLock(r, server, raider, now) then
 		return nil, 0
 	end
+	if r.raid and r.raid.cracked then
+		return nil, 0 -- one crack per raid: retained bags cannot be re-stolen in the same raid
+	end
+	(r.raid :: any).cracked = true
 	local amount = exposed(r.stash)
 	if amount <= 0 then
 		return r, 0

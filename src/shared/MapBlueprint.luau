@@ -1,7 +1,7 @@
 --!strict
 -- The island as data. World axes: +X east, +Z south, ground surface at y = 0.
 -- Builders turn this into parts; tools/map_preview.py renders it for inspection; tests check invariants.
--- Everything here is original fiction: Glasshouse Island, a stylized coastal city.
+-- Everything here is original fiction: Blackout Bay, a stylized coastal city on an island.
 
 export type P = { x: number, z: number }
 export type Road = { name: string, from: P, to: P, width: number, elevated: boolean?, pedestrian: boolean?, bridge: boolean? }
@@ -92,7 +92,7 @@ Blueprint.Buildings = {
 	{ name = "Courthouse", x = 350, z = 215, w = 90, d = 90, h = 28, style = "Stone" },
 	-- Centre south (between Harbor Rd, Market St, Aurora Blvd, Station Rd)
 	{ name = "Lantern Hall", x = -120, z = 40, w = 90, d = 110, h = 32, style = "Warm" },
-	{ name = "Bank of Glasshouse", x = 20, z = 40, w = 120, d = 110, h = 36, style = "Stone" },
+	{ name = "Bank of the Bay", x = 20, z = 40, w = 120, d = 110, h = 36, style = "Stone" },
 	{ name = "Tram Shed", x = 170, z = 40, w = 100, d = 110, h = 20, style = "Industrial" },
 	-- Centre south of Station Rd (between Harbor Rd, Market St, Station Rd, Dockside)
 	{ name = "Rooming House", x = -120, z = 225, w = 90, d = 90, h = 24, style = "Brick" },

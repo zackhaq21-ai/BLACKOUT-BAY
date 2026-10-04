@@ -1,11 +1,9 @@
 --!strict
--- Explicit, configurable prototype rules for how much of a stash a raid can take, what tiers cost and
+-- Explicit rules for how much of a stash a raid can take (all of it, by owner decision), what tiers cost and
 -- unlock, and how stolen value is minted as physical bundles. Pure Luau, unit-tested.
 
 export type Cfg = {
-	ProtectedFloor: number,
-	ExposedFraction: number,
-	MaxExposedPerRaid: number,
+	FullExposure: boolean,
 	BankFeeFraction: number,
 	BundleValue: number,
 	Tiers: { [number]: { cost: number, unlock: string, desc: string } },
@@ -16,10 +14,13 @@ export type Cfg = {
 
 local StashRules = {}
 
--- Amount a successful raid takes from a stash of `stash`.
+-- Amount a successful raid takes from a stash of `stash`. Owner's rule: the whole earned stash.
+-- The function stays as the single place to change if that decision ever changes.
 function StashRules.exposed(cfg: Cfg, stash: number): number
-	local above = math.max(0, stash - cfg.ProtectedFloor)
-	return math.min(cfg.MaxExposedPerRaid, math.floor(above * cfg.ExposedFraction))
+	if cfg.FullExposure then
+		return math.max(0, math.floor(stash))
+	end
+	return math.max(0, math.floor(stash))
 end
 
 -- Split a stolen amount into bundle values (largest first, none above BundleValue).

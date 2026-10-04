@@ -1,10 +1,12 @@
 --!strict
--- GLASSHOUSE central tuning. Every gameplay number lives here so balance passes
+-- BLACKOUT BAY (internal codename Glasshouse) central tuning. Every gameplay number lives here so balance passes
 -- never require hunting through systems. Values are provisional until playtested.
 
 local Config = {}
 
-Config.GameName = "GLASSHOUSE"
+Config.GameName = "BLACKOUT BAY"
+Config.Subtitle = "The Aurora Exchange"
+Config.Codename = "Glasshouse" -- internal module/log prefix; player-facing title is Blackout Bay
 Config.BuildTag = "m2-first-heist"
 
 Config.Server = {
@@ -104,6 +106,25 @@ Config.Vehicles = {
 	RespawnSeconds = 45,
 }
 
+-- Cosmetics catalog (carried over from the prototype). Preview-only: every PassId/ProductId is 0 and commerce
+-- is disabled. Paid looks never change stats, hitboxes, sight or visibility. Earned suits unlock by XP.
+type CatalogItem = { Id: string, Name: string, Kind: string, EarnedXP: number | boolean, PassId: number, ProductId: number, Color: { number } }
+Config.Commerce = {
+	Enabled = false, -- requires a separate reviewed release; zero ids cannot purchase anyway
+	Catalog = ({
+		{ Id = "mint", Name = "Mint courier", Kind = "Suit", EarnedXP = 0, PassId = 0, ProductId = 0, Color = { 75, 223, 190 } },
+		{ Id = "amber", Name = "Amber operator", Kind = "Suit", EarnedXP = 200, PassId = 0, ProductId = 0, Color = { 255, 187, 89 } },
+		{ Id = "violet", Name = "Violet ghost", Kind = "Suit", EarnedXP = 600, PassId = 0, ProductId = 0, Color = { 175, 142, 255 } },
+		{ Id = "prism", Name = "Prism suit", Kind = "Suit", EarnedXP = false, PassId = 0, ProductId = 0, Color = { 124, 199, 255 } },
+	} :: { CatalogItem }),
+	-- XP per closed job: base when nothing was delivered, otherwise base + delivered/100 (capped) + quiet bonus
+	XpEmpty = 25,
+	XpDelivered = 100,
+	XpPerHundredDelivered = 1,
+	XpDeliveredCap = 200,
+	XpGhostBonus = 50,
+}
+
 Config.Mission = {
 	StartWindowSeconds = 900, -- a job auto-closes after this long
 	CloseGraceSeconds = 25, -- after the last bag is delivered or lost, the job stays open this long for another trip
@@ -126,13 +147,14 @@ Config.Audio = {
 	},
 }
 
--- Hideout stash and raids. PROTOTYPE RULES, explicit and configurable. Neither full wipes nor fully protected
--- banking were approved; these numbers are the labelled assumption until the owner decides.
+-- Hideout stash and raids. OWNER DECISION (2026-10-04): high stakes. A successful raid exposes the FULL earned
+-- stash: no protected floor, no fraction, no per-raid cap. Permanent Robux cosmetics, paid entitlements, XP and
+-- unlocks are never touched by raids. Banking (stash -> wallet for a fee) remains the only protected-progression
+-- path; it is a separate switch the owner can turn off.
 Config.Hideout = {
 	PayoutsToStash = true, -- job payouts land in the hideout safe (raidable), not the wallet
-	ProtectedFloor = 1000, -- the first N in a stash can never be taken by a raid
-	ExposedFraction = 0.35, -- a successful raid takes this share of the stash above the floor...
-	MaxExposedPerRaid = 15000, -- ...capped per raid
+	FullExposure = true, -- a cracked safe gives up the entire stash (owner's high-stakes rule)
+	BankingEnabled = true, -- owner choice: allow moving stash to the raid-proof wallet at a cost
 	BankFeeFraction = 0.10, -- moving stash -> wallet costs this fee (the wallet is never raided)
 	BankCooldownSeconds = 120,
 	BundleValue = 2500, -- stolen stash is minted as physical bundles of at most this value

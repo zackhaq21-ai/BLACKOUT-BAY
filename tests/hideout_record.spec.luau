@@ -25,11 +25,15 @@ return function(t)
 		t.truthy((HR.deposit(r, 10)), "deposits still allowed")
 		-- wrong holder cannot crack
 		local _, stolen = HR.crack(r, "srvB", "bob", function(s) return math.floor(s * 0.5) end, 1003); t.eq(stolen, 0)
-		local r2, stolen2 = HR.crack(r, "srvA", "alice", function(s) return math.floor((s - 1000) * 0.35) end, 1003)
-		t.truthy(r2); t.eq(stolen2, 6653); t.eq(r.stash, 20010 - 6653); t.eq(r.lifetimeLost, 6653)
+		local r2, stolen2 = HR.crack(r, "srvA", "alice", function(s) return s end, 1003)
+		t.truthy(r2); t.eq(stolen2, 20010); t.eq(r.stash, 0); t.eq(r.lifetimeLost, 20010)
+		-- retained bags flow back, but the same raid can never crack twice
+		HR.retain(r, 2500)
+		local r3, stolen3 = HR.crack(r, "srvA", "alice", function(s) return s end, 1004)
+		t.falsy(r3); t.eq(stolen3, 0); t.eq(r.stash, 2500)
 		-- bob cannot release alice's lock while it is live
 		t.falsy((HR.releaseRaid(r, "srvB", "bob", nil, 10, 1004)))
-		t.truthy((HR.releaseRaid(r, "srvA", "alice", { t = 1004, raider = "alice", raiderName = "Alice", crewNames = {}, entry = "breaker", defences = {}, lost = 6653, retained = 0 }, 10, 1004)))
+		t.truthy((HR.releaseRaid(r, "srvA", "alice", { t = 1004, raider = "alice", raiderName = "Alice", crewNames = {}, entry = "breaker", defences = {}, lost = 17510, retained = 2500 }, 10, 1004)))
 		t.eq(r.raid, nil); t.eq(r.unread, 1); t.eq(#r.reports, 1)
 		local ok3, err3 = HR.claimRaid(r, "srvB", "bob", "Bob", 1100, 420, 600); t.falsy(ok3); t.truthy(err3:find("recently"))
 		t.truthy((HR.claimRaid(r, "srvB", "bob", "Bob", 1700, 420, 600)))
