@@ -1,0 +1,5 @@
+build/*
+!build/Glasshouse.rbxl
+sourcemap.json
+*.rbxl.lock
+tools/globalTypes.d.luau

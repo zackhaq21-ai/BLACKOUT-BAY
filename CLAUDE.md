@@ -78,12 +78,10 @@
 
 # Verified Project Facts
 
-Confirmed on 2026-10-03 against the `zackhaq21-ai/BLACKOUT-BAY` repository. Only verified information is listed; nothing below is inferred.
+Confirmed on 2026-10-04 against the `zackhaq21-ai/BLACKOUT-BAY` repository (branch `claude/roblox-dev-instructions-co8a58`).
 
-- Repository: `https://github.com/zackhaq21-ai/BLACKOUT-BAY`. At the time of this setup it contained no commits, branches, or files other than this CLAUDE.md.
-- Game concept / title / player count: NOT YET VERIFIED. No design document, place file, or README exists in the repository. Do not assume a concept until it is documented here or in the project.
-- Source paths: NOT YET VERIFIED. No Luau source, `.rbxl`/`.rbxlx` place file, or `*.project.json` exists in the repository.
-- Studio synchronization / import workflow: NOT YET VERIFIED. No Rojo, Argon, or other sync configuration exists. Do not assume one; confirm with the owner before adding one.
-- Build / test commands: NONE EXIST. No `selene.toml`, `.luaurc`, `aftman.toml`, `rokit.toml`, `wally.toml`, or CI configuration exists. Do not invent commands.
-
-Update this section with confirmed details once the game source is added to the repository.
+- Game: GLASSHOUSE (working title), an original open-world heist game on a fictional coastal island. Crews of 1–5 players; server capacity set to 12 in `src/shared/Config.luau`. First heist: the Aurora Exchange museum. Full vision and open decisions: `docs/DESIGN.md`; current state: `docs/STATUS.md`.
+- Source layout (Rojo, `default.project.json`): `src/shared` → ReplicatedStorage.Shared (Config, Palette, Net, MapBlueprint, `Core/` pure logic); `src/server` → ServerScriptService.Server (`init.server.luau`, `Builders/`, `Services/`, `NPC/`); `src/client` → StarterPlayer.StarterPlayerScripts.Client (`init.client.luau`, `Controllers/`, `UI/`).
+- Studio sync / import: no live Studio connection exists in this repository. The world is generated from code at server start. Build the place with `tools/build.sh` (Rojo 7) → `build/Glasshouse.rbxl`, or use `rojo serve` with the Rojo Studio plugin. The prebuilt `.rbxl` is committed.
+- Checks: `tools/check.sh` runs luau-lsp analysis against `tools/globalTypes.d.luau` (fetched from the luau-lsp 1.52.0 tag; gitignored), Selene with the local `roblox.yml`, and the Luau CLI logic tests in `tests/` via `tools/run-tests.luau`. Last run: 0 type errors, 0 lint warnings, 42/42 tests.
+- Verification status: SOURCE IMPLEMENTED and AUTOMATED CHECKS PASSED only. Nothing has been Studio-playtested or live-verified yet. Audio asset ids are intentionally blank (none could be verified). Purchases are disabled; nothing is published.

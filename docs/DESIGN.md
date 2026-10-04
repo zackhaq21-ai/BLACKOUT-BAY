@@ -1,0 +1,67 @@
+# GLASSHOUSE — Design Record
+
+Working title: **GLASSHOUSE**. Creative promise: build a fortune in a city where everyone can see what you have, and someone you trust may help them take it.
+
+This file records decisions, labelled assumptions and the system shapes. Detailed progress lives in `docs/STATUS.md`, not here.
+
+## Decision order used
+1. Owner's explicit decisions and corrections.
+2. Confirmed requirements in the build brief (five pillars, approved features, canceled items).
+3. Existing implementation that satisfies those requirements (none existed: the repository was empty).
+4. Clearly labelled, reversible assumptions (marked **ASSUMPTION** below).
+
+## Pillars → systems
+| Pillar | Where it lives |
+|---|---|
+| Agency | Three entries (front / dock / roof), two vault methods (dual swipe / drill), any exit, route choice on the island. |
+| Consequences | Security levels (Quiet → Suspicious → Alert → Lockdown) change available exits; police heat follows you and your car; dropped bags can be taken by anyone. |
+| Cooperation | Dual keycard swipe opens the vault instantly; one carries, one drives, one cuts power; cell release in the police lobby. |
+| Betrayal | Physical bags: anyone can pick up a drop or raid an open trunk; leaving a crew keeps what you carry; a leader can cut a member from the split by kicking them. Every such act is logged with a landmark. |
+| Mastery | Guard patrol timing (office guard leaves for ~45 s per loop), camera sweeps, the dock code on the office board, pickpocketing from behind, lockdown timing, the power-cut window, road knowledge. |
+
+## The island (compact first footprint)
+1240 × 1000 studs, generated from `src/shared/MapBlueprint.luau` at server start. Key places: Aurora Exchange (museum, north-centre), Aurora Plaza (front), Parking Deck (east, roof gantry to the museum roof), Canal Lane and the Cut (quiet pedestrian route west), Seawall Overpass (fast, exposed), Lantern Cross (memorable intersection; police barricade point), Harbour Piers A–F (hideouts, south-west), Police Station + jail (south-east), Lighthouse Point (landmark). `tools/map_preview.py` renders it.
+
+**ASSUMPTION — one shared museum, no instancing.** Security and loot are world state; several crews can be inside at once and race for the same cases. This produced rivalry for free and kept the server simple. Reversible: a per-crew lockout is a small change in `SecurityService`.
+
+## First heist: the Aurora Exchange
+Sequence: board → approach → entry → cases/vault → escalation → carry out → getaway → delivery table → payout → board again.
+
+- **Front**: smash the glass (3 s). Instant Alert, heat for the smasher. Cars wait on the Boulevard. Lockdown drops the shutter 25 s after Alert.
+- **Service**: dock keypad (4-digit code shown on the security office board; the office guard patrols out for ~45 s of a ~60 s loop). Lane is bollarded: no cars until Market Street or Dockside.
+- **Roof**: parking deck ramp → gantry → ladder → open skylight → mezzanine. Heavy loot cannot climb or jump; light bags can be thrown off the roof (drop) and collected below.
+- **Vault**: two readers (any two keycard swipes within 4 s: office desk card + captain's pocket) or a 30 s drill (loud). Holds the Aurora Core (heavy, 7,500) and two cases.
+- **Complications**: junction box in the alley cuts power 45 s (cameras dark, shutter lifted; 150 s cooldown). CCTV switch in the office kills cameras 90 s. Three wrong keypad codes trip a tamper alarm. Lockdown seals the dock keypad unless the power is cut.
+- **Scaling**: one player can do everything (drill, one bag at a time, trunk for more). Larger crews gain the dual swipe, parallel case cutting, a driver who never leaves the car, and a power cutter. No inflated health bars anywhere.
+- **Variation per restock**: which 6 of 8 public cases are stocked and with what, vault contents, the dock code, keycards reset, guards reset. Patrol routes are fixed in this milestone (**ASSUMPTION**; randomising route sets is a data change).
+
+## Failure changes the story
+- Suspicious → guards investigate the last place they half-saw you; you can still leave.
+- Alert → guards chase and detain (2.2 s within 6 studs), everyone inside gets police heat, the alarm is visible across the plaza.
+- Lockdown → front shutter down and dock sealed: roof or power cut.
+- Disabled getaway (rammed to 0 health) → trunk spills onto the road.
+- Arrest → bags drop where you stood; jail with three exits: lockpick (25 s), auto-release (90 s), or a crewmate's lobby switch (the desk sergeant notices: +60 heat).
+- Crew member leaves mid-job → forfeits their share; whatever they carry leaves with them; logged.
+- Job close: auto when all touched loot is delivered or lost (25 s grace for another trip), when every present member is arrested, when the crew disbands, after the 15-minute window, or manually from the board. Retry: walk to the board, press start.
+
+## Physical loot and trust
+`LootLedger` (pure, tested) is the single identity: InCase → Carried → Dropped / InVehicle → Delivered (once) / Destroyed. The server renders each state; value is credited exactly once on delivery. Hands hold one bag; trunks hold 2 (Kestrel), 5 (Courier), 1 (Commuter). Anyone can raid an open trunk or a drop.
+
+Payout: the leader sets integer-percent shares before the job (equal by default); shares freeze at start; delivered value is split by `SplitLedger` among members still in the crew; leavers forfeit; rounding goes to the last deliverer. The results screen separates agreed split, delivered value, each payout, and the event log (who took what, where).
+
+**Decoys / split loot**: real loot can be divided between vehicles today (two trunks). Fake bags and decoy vehicles are not implemented yet (see STATUS).
+
+## Police (NPC fallback this milestone)
+- Heat per player (0–300; levels 1–3) from the alarm (120), smashing doors, being seen carrying loot (60/10 s), being rammed (40). Decays 2.5/s only after 20 s unseen. Vehicles seen with a wanted driver are recognised for 90 s.
+- 10 cruisers parked at the station. After the response delay (14 s Medium / 8 s Hard) up to 3 (Medium) / 5 (Hard) go active, drive the road graph toward the wanted, ram cars (25 damage), cuff on foot (2.5 s stopped within 9 studs; broken by moving 14 studs away). At heat level 2 two cruisers block Lantern Cross.
+- **ASSUMPTION — NPC difficulty selection**: fixed `Config.Police.NpcDifficulty = "Medium"`; `"Hard"` is a table swap. The brief leaves the selection method unresolved.
+- Player police faction, helicopter, balanced loadout: not in this milestone.
+
+## Persistence
+`DataService`: DataStore `GlasshouseProfiles`, keys prefixed `dev/` (separate dev data), UpdateAsync session lock (150 s stale timeout), 3 load retries, read-only mode when another server holds the lock, in-memory mode when the DataStore is unavailable. A profile that failed to load is never saved. Autosave every 120 s; save on leave and on close. Cosmetics live in the profile as a separate table (no cosmetics are sold yet; purchases stay disabled).
+
+## Rare car persistence (open decision, logic implemented)
+`RareCarCycle` (pure, tested) implements the per-server weekly rules: one car, heist once per week, 120 s break-in that cancels on interruption and never banks progress, transfers that neither duplicate the car nor reopen the heist, and a weekly reset that returns it. **Not integrated** into the world yet. Open decision for the owner: Roblox servers are not durable, so "per-server" ownership cannot survive a restart without a persisted identity. Options: (a) owner-profile flag keyed by week number (ownership follows the thief across servers: becomes one car per owner, not per server), (b) a shared week record (becomes global rarity), (c) accept that a restart returns the car to the heist site. None was chosen; the brief forbids silently converting to global rarity or permanent ownership, so this stays explicit.
+
+## Deferred / excluded by the brief
+Cargo-ship heists, framing rivals, forced loot-vs-teammate choice, the rare weekly gun (canceled), real-money bounty funding, pay-to-win of any kind, live purchases (require separate authorisation).

@@ -1,0 +1,54 @@
+# Minimal Roblox globals for Selene (the official std needs a network fetch that this environment blocks).
+---
+base: lua51
+lua_versions:
+  - luau
+globals:
+  math.clamp: { args: [{ type: number }, { type: number }, { type: number }] }
+  math.round: { args: [{ type: number }] }
+  math.sign: { args: [{ type: number }] }
+  math.noise: { args: [{ type: "...", required: false }] }
+  table.clone: { args: [{ type: table }] }
+  table.find: { args: [{ type: table }, { type: any }, { type: number, required: false }] }
+  table.create: { args: [{ type: number }, { type: any, required: false }] }
+  table.clear: { args: [{ type: table }] }
+  table.freeze: { args: [{ type: table }] }
+  table.isfrozen: { args: [{ type: table }] }
+  table.move: { args: [{ type: "..." }] }
+  table.pack: { args: [{ type: "...", required: false }] }
+  table.unpack: { args: [{ type: "..." }] }
+  string.split: { args: [{ type: string }, { type: string, required: false }] }
+  string.pack: { args: [{ type: "..." }] }
+  string.unpack: { args: [{ type: "..." }] }
+  os.clock: { args: [] }
+  os.time: { args: [{ type: table, required: false }] }
+  os.date: { args: [{ type: "...", required: false }] }
+  game: { any: true }
+  workspace: { any: true }
+  script: { any: true }
+  plugin: { any: true }
+  Instance: { any: true }
+  Vector3: { any: true }
+  Vector2: { any: true }
+  CFrame: { any: true }
+  Color3: { any: true }
+  ColorSequence: { any: true }
+  NumberSequence: { any: true }
+  NumberRange: { any: true }
+  UDim2: { any: true }
+  UDim: { any: true }
+  Enum: { any: true }
+  Random: { any: true }
+  PhysicalProperties: { any: true }
+  RaycastParams: { any: true }
+  TweenInfo: { any: true }
+  Rect: { any: true }
+  task: { any: true }
+  typeof: { any: true }
+  warn: { any: true }
+  tick: { any: true }
+  time: { any: true }
+  wait: { any: true }
+  utf8: { any: true }
+  bit32: { any: true }
+  buffer: { any: true }

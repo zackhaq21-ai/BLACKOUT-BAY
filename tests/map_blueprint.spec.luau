@@ -1,0 +1,62 @@
+local B = require("../src/shared/MapBlueprint")
+
+return function(t)
+	local I = B.Island
+	local function inside(x, z) return x >= I.minX and x <= I.maxX and z >= I.minZ and z <= I.maxZ end
+
+	t.test("roads and buildings stay on the island", function()
+		for _, r in ipairs(B.Roads) do
+			t.truthy(inside(r.from.x, r.from.z) and inside(r.to.x, r.to.z), r.name)
+			t.truthy(r.from.x == r.to.x or r.from.z == r.to.z, r.name .. " must be axis-aligned")
+		end
+		for _, b in ipairs(B.Buildings) do
+			t.truthy(inside(b.x - b.w / 2, b.z - b.d / 2) and inside(b.x + b.w / 2, b.z + b.d / 2), b.name)
+		end
+	end)
+
+	t.test("buildings do not overlap roads, the museum, the plaza, the deck or each other", function()
+		local function rect(x, z, w, d) return { x1 = x - w / 2, x2 = x + w / 2, z1 = z - d / 2, z2 = z + d / 2 } end
+		local function overlaps(a, b) return a.x1 < b.x2 and a.x2 > b.x1 and a.z1 < b.z2 and a.z2 > b.z1 end
+		local reserved = {
+			rect(B.Museum.x, B.Museum.z, B.Museum.w, B.Museum.d),
+			rect(B.Plaza.x, B.Plaza.z, B.Plaza.w, B.Plaza.d),
+			rect(B.ParkingDeck.x, B.ParkingDeck.z, B.ParkingDeck.w, B.ParkingDeck.d),
+			rect(B.PoliceStation.x, B.PoliceStation.z, B.PoliceStation.w, B.PoliceStation.d),
+			rect(B.PoliceLot.x, B.PoliceLot.z, B.PoliceLot.w, B.PoliceLot.d),
+			rect(B.Canal.x, (B.Canal.fromZ + B.Canal.toZ) / 2, B.Canal.width, B.Canal.toZ - B.Canal.fromZ),
+		}
+		for _, r in ipairs(B.Roads) do
+			local cx, cz = (r.from.x + r.to.x) / 2, (r.from.z + r.to.z) / 2
+			local w = if r.from.x == r.to.x then r.width else math.abs(r.to.x - r.from.x) + r.width
+			local d = if r.from.z == r.to.z then r.width else math.abs(r.to.z - r.from.z) + r.width
+			table.insert(reserved, rect(cx, cz, w, d))
+		end
+		for _, h in ipairs(B.Hideouts) do table.insert(reserved, rect(h.x, h.z, h.w, h.d)) end
+		local rects = {}
+		for _, b in ipairs(B.Buildings) do
+			local rb = rect(b.x, b.z, b.w, b.d)
+			for _, res in ipairs(reserved) do t.falsy(overlaps(rb, res), b.name .. " overlaps reserved space") end
+			for name, other in pairs(rects) do t.falsy(overlaps(rb, other), b.name .. " overlaps " .. name) end
+			rects[b.name] = rb
+		end
+	end)
+
+	t.test("six hideouts, unique ids, spaced apart", function()
+		t.eq(#B.Hideouts, 6)
+		local ids = {}
+		for i, h in ipairs(B.Hideouts) do
+			t.falsy(ids[h.id]); ids[h.id] = true
+			if i > 1 then t.truthy(h.x - B.Hideouts[i - 1].x >= h.w, "hideouts overlap") end
+		end
+	end)
+
+	t.test("nearest landmark lookup", function()
+		t.eq(B.nearestLandmark(-205, -58), "Lantern Cross")
+		t.eq(B.nearestLandmark(570, -460), "Lighthouse Point")
+	end)
+
+	t.test("every route and street car has a name", function()
+		for _, r in ipairs(B.Routes) do t.truthy(#r.summary > 20, r.key) end
+		for _, c in ipairs(B.StreetCars) do t.truthy(inside(c.x, c.z), c.name) end
+	end)
+end
