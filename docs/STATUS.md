@@ -2,7 +2,7 @@
 
 Keep this short. Current task, decisions, changed files, verification, blockers, next step.
 
-## Current state: review branch `claude/review-m4-reconciliation` (not merged)
+## Current state: reconciliation merged into `claude/roblox-dev-instructions-co8a58`
 Base: the milestone 3 repository. The Studio-tested prototype (`prototype/aurora-v0`) was reconciled: its tested pieces were ported, nothing in the main game was replaced, and the raid rule was changed to the owner's high-stakes decision. Builds to `build/BlackoutBay.rbxl`; the engine-test place is `build/BlackoutBay-EngineTest.rbxl`.
 
 ### Done on this branch
@@ -19,5 +19,5 @@ Stolen-loot recovery missions (window recorded in reports); decoy vehicles and f
 
 ### Next task
 1. On the prepared PC: `tools/verify-engine.ps1` (counts 1, 2, 5). Fix anything the scenario reports, then play solo and a 2-client raid by hand (`docs/LAUNCH.md`).
-2. Decide whether banking stays on (`Config.Hideout.BankingEnabled`).
-3. Merge the review branch if accepted, then: stolen-loot recovery (use `report.recoveryUntil` and the bundle ids), decoys and fake bags, in-world bounties.
+2. Decided: banking stays enabled (`Config.Hideout.BankingEnabled = true`); review branch merged on 2026-10-04.
+3. Next: stolen-loot recovery (use `report.recoveryUntil` and the bundle ids), decoys and fake bags, in-world bounties.
