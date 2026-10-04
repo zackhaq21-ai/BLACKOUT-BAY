@@ -57,7 +57,7 @@ function WorldBuilder.build()
 	local root = Builder.folder(workspace, "Glasshouse")
 	local island = IslandBuilder.build(root)
 	local museum = MuseumBuilder.build(root)
-	local hideouts = HideoutBuilder.build(root)
+	local hideouts, lockup = HideoutBuilder.build(root)
 	Builder.folder(root, "Vehicles")
 	Builder.folder(root, "Loot")
 	Builder.folder(root, "NPCs")
@@ -77,6 +77,7 @@ function WorldBuilder.build()
 		island = island,
 		museum = museum,
 		hideouts = hideouts,
+		lockup = lockup,
 		vehiclesFolder = root.Vehicles,
 		lootFolder = root.Loot,
 		npcFolder = root.NPCs,

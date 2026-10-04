@@ -67,6 +67,9 @@ function InteractionService.start()
 	InteractionService.register("Drill", S.Security.onDrillDone)
 	InteractionService.register("Lockpick", S.Police.onLockpick)
 	InteractionService.register("CellRelease", S.Police.onCellRelease)
+	InteractionService.register("RaidBreaker", S.Raid.onBreaker)
+	InteractionService.register("RaidPierDoor", S.Raid.onPierDoor)
+	InteractionService.register("RaidSafe", S.Raid.onSafe)
 	InteractionService.registerHold("Drill", { begin = S.Security.onDrillStart, hold = function(player, _prompt, dt)
 		S.Security.onDrillHold(player, dt)
 	end })
@@ -140,6 +143,11 @@ function InteractionService.start()
 	Net.event("KeypadSubmit").OnServerEvent:Connect(function(player, req)
 		if allowed(player) and type(req) == "table" and type(req.code) == "string" and #req.code <= 8 then
 			S.Security.onKeypadSubmit(player, req.targetId, req.code)
+		end
+	end)
+	Net.event("HideoutRequest").OnServerEvent:Connect(function(player, req)
+		if allowed(player) then
+			S.Hideout.handleRequest(player, req)
 		end
 	end)
 	Net.event("DropCarry").OnServerEvent:Connect(function(player)

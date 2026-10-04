@@ -21,6 +21,9 @@ Net.Events = {
 	"CloseKeypad",
 	"Cue", -- {name}
 	"Jail", -- {state, secondsLeft}
+	"HideoutState", -- {stash, tier, unread, reports?, raidActive}
+	"RaidTargets", -- {targets}
+	"RaidState", -- raider/defender raid snapshot or {active=false}
 	-- client -> server
 	"CrewRequest", -- {action, ...}
 	"MissionRequest", -- {action, ...}
@@ -28,6 +31,7 @@ Net.Events = {
 	"DropCarry",
 	"SetSneak", -- bool
 	"SetSprint", -- bool
+	"HideoutRequest", -- {action, ...}: upgrade, bank, markRead, listTargets, startRaid, crackSafe
 }
 
 Net.Functions = {

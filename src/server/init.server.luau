@@ -16,9 +16,9 @@ Net.createAll()
 local services = {}
 local ctx = { world = world, services = services, config = Config }
 
-local ORDER = { "EventLog", "Data", "Economy", "Movement", "Hideout", "Crew", "Loot", "Security", "Mission", "Vehicle", "Police", "Interaction" }
+local ORDER = { "EventLog", "Data", "Economy", "Movement", "HideoutStore", "Raid", "Hideout", "Crew", "Loot", "Security", "Mission", "Vehicle", "Police", "Interaction" }
 for _, name in ipairs(ORDER) do
-	services[name] = require(script.Services[name .. "Service"])
+	services[name] = require(script.Services[if name == "HideoutStore" then name else name .. "Service"])
 end
 for _, name in ipairs(ORDER) do
 	services[name].init(ctx)

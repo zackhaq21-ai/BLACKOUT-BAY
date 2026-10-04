@@ -56,6 +56,7 @@ function CrewService.snapshot(crew)
 			isLeader = p == crew.leader,
 			carrying = carrying,
 			cash = p:GetAttribute("Cash") or 0,
+			stash = p:GetAttribute("Stash") or 0,
 			share = crew.shares[Comms.key(p)] or 0,
 			jailed = p:GetAttribute("Jailed") == true,
 		})
@@ -99,6 +100,7 @@ local function createCrew(leader: Player)
 	local Hideout = CrewService.ctx.services.Hideout
 	crew.unit = Hideout.assignUnit(crew)
 	crew.colorIndex = crew.unit and crew.unit.index or crew.colorIndex
+	Hideout.bindCrewUnit(crew)
 	CrewService.broadcast(crew)
 	CrewService.ctx.services.EventLog.crew(crew.id, Comms.name(leader) .. " formed a crew at " .. (crew.unit and crew.unit.label or "the harbour"))
 	return crew
@@ -107,6 +109,7 @@ end
 local function destroyCrew(crew)
 	crews[crew.id] = nil
 	usedCodes[crew.code] = nil
+	CrewService.ctx.services.Hideout.unbindCrewUnit(crew)
 	CrewService.ctx.services.Hideout.releaseUnit(crew)
 end
 
@@ -163,8 +166,13 @@ local function removeMember(crew, player: Player, reason: string, by: Player?)
 		return
 	end
 	if crew.leader == player then
+		local previous = crew.leader
 		crew.leader = crew.members[1]
 		CrewService.ctx.services.EventLog.crew(crew.id, Comms.name(crew.leader) .. " now leads the crew")
+		if crew.unit then
+			CrewService.ctx.services.Hideout.unbindCrewUnit({ unit = crew.unit, leader = previous })
+			CrewService.ctx.services.Hideout.bindCrewUnit(crew)
+		end
 	end
 	-- Next job's split resets to equal; an active job keeps its frozen shares in MissionFlow.
 	crew.shares = SplitLedger.equal(memberKeys(crew))

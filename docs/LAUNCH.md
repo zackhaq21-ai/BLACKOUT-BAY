@@ -21,6 +21,13 @@ Or run `rojo serve` and connect the Rojo Studio plugin to live-sync.
 2. In one client, open the job board and read the 4-letter **join code** on the crew card (top-right). In another client, type it in the board's **Crew code** box and press **Join crew**. The joiner is moved to the crew's pier.
 3. Expected: the crew card lists both players and their split; the leader can change the split with +5 / −5 before pressing Start.
 
+## Raid test (two clients)
+1. Client A runs a heist and delivers; the payout lands in A's **stash** (top-right, under cash). Open the board → **Hideout** tab → upgrade to tier 3 when the stash allows (1,500 + 3,000 + 5,000).
+2. Client B opens the board → **Raids** tab → **Raid** on A. Expected: B's objective says "Break into A's hideout" at A's pier (A is online and leads a crew). A sees a red raid panel.
+3. B cuts the **shield breaker** on the unit's outside wall (hold E), walks to the safe, holds the prompt once; a gold "Cracking the safe" bar fills over ~25 s. Expected: bundles appear by the safe; A is told the safe was cracked.
+4. B leaves a bundle on the floor for 8 s: it vanishes and A's stash goes back up ("defences kept"). B carries another bundle to B's own pier delivery table: B's stash goes up after the job closes.
+5. A leaves the server. B opens Raids again: A is now listed at the **Breakwater Lockup** (east of the piers). A rejoining later gets "Your hideout was raided while you were away" and the report in the Hideout tab.
+
 ## Controls
 | Action | Keyboard / mouse | Controller | Touch |
 |---|---|---|---|

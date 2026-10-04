@@ -100,6 +100,18 @@ function MissionFlow.lootPicked(self: MissionFlow, memberId: string, itemId: str
 	advance(self, "LootTaken", "Loot in hand")
 end
 
+-- Items created by the job itself (stash bundles from a cracked safe) count as taken.
+function MissionFlow.lootMinted(self: MissionFlow, itemIds: { string }, label: string)
+	if not self:isActive() then
+		return
+	end
+	for _, id in ipairs(itemIds) do
+		self.job.touched[id] = true
+	end
+	self:log("mint", nil, string.format("%d x %s on the floor by the safe", #itemIds, label), { count = #itemIds })
+	advance(self, "LootTaken", "Loot on the floor")
+end
+
 function MissionFlow.lootLeftSite(self: MissionFlow, memberId: string, label: string)
 	if not self:isActive() then
 		return

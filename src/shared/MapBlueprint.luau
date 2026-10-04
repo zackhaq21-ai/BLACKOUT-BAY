@@ -51,6 +51,9 @@ do
 	end
 end
 
+-- Breakwater Lockup: where an offline owner's hideout is instantiated for a raid (same footprint as a pier unit).
+Blueprint.Lockup = { id = "lockup", label = "Breakwater Lockup", x = -180, z = 365, w = 48, d = 70, facing = 0 } :: Hideout
+
 -- City blocks. Style keys are interpreted by the builder (Stone, Warm, Industrial, Glass, Brick).
 Blueprint.Buildings = {
 	-- North-west residential rows (between Seawall Rd, North Row, the Cut and Aurora Blvd)

@@ -75,6 +75,14 @@ return function(t)
 		m2:close(r2); t.eq(m2:summary().headline, "Walked away empty")
 	end)
 
+	t.test("minted bundles count as loot taken", function()
+		local m = fresh()
+		m:memberEnteredSite("a")
+		m:lootMinted({ "b1", "b2" }, "Stash Bundle")
+		t.eq(m:phase(), "LootTaken"); t.truthy(m.job.touched.b1); t.truthy(m.job.touched.b2)
+		t.truthy((m:shouldAutoClose(0, 900)))
+	end)
+
 	t.test("log is bounded", function()
 		local m = fresh()
 		for i = 1, 100 do m:lootDropped("a", "x" .. i, "X", nil) end

@@ -73,9 +73,13 @@ local function build()
 	refs.cashNote = Make.label(cash, "Note", "", Theme.Small, Theme.Muted)
 	refs.cashNote.TextXAlignment = Enum.TextXAlignment.Right
 	refs.cashNote.Position = UDim2.new(0, 0, 0, 32)
+	refs.stash = Make.label(cash, "Stash", "", Theme.Small, Theme.Accent, true)
+	refs.stash.TextXAlignment = Enum.TextXAlignment.Right
+	refs.stash.Position = UDim2.new(0, 0, 0, 46)
+	cash.Size = UDim2.new(0, 190, 0, 70)
 
 	-- Crew card (right, under cash)
-	local crew = Make.panel(gui, "Crew", UDim2.new(0, 230, 0, 0), UDim2.new(1, -246, 0, 80))
+	local crew = Make.panel(gui, "Crew", UDim2.new(0, 230, 0, 0), UDim2.new(1, -246, 0, 96))
 	crew.AutomaticSize = Enum.AutomaticSize.Y
 	Make.list(crew, 3)
 	refs.crewTitle = Make.label(crew, "Title", "Crew", Theme.Body, Theme.Text, true)
@@ -129,6 +133,24 @@ local function build()
 	local bg, cfill = Make.bar(cuff, "Bar", Theme.Alarm)
 	bg.Position = UDim2.new(0, 0, 0, 22)
 	refs.cuffFill = cfill
+
+	-- Safe cracking bar (centre)
+	local crack = Make.panel(gui, "Crack", UDim2.new(0, 260, 0, 48), UDim2.new(0.5, -130, 0.5, 60))
+	crack.Visible = false
+	refs.crack = crack
+	refs.crackText = Make.label(crack, "Text", "Cracking the safe", Theme.Small, Theme.Gold, true)
+	local kbg, kfill = Make.bar(crack, "Bar", Theme.Gold)
+	kbg.Position = UDim2.new(0, 0, 0, 22)
+	refs.crackFill = kfill
+
+	-- Raid panel (left, under the pills)
+	local raid = Make.panel(gui, "Raid", UDim2.new(0, 330, 0, 0), UDim2.new(0, 16, 0, 160))
+	raid.AutomaticSize = Enum.AutomaticSize.Y
+	raid.Visible = false
+	refs.raid = raid
+	Make.list(raid, 2)
+	refs.raidTitle = Make.label(raid, "Title", "", Theme.Body, Theme.Alarm, true)
+	refs.raidText = Make.label(raid, "Text", "", Theme.Small, Theme.Text)
 
 	-- Vehicle health (bottom-left)
 	local veh = Make.panel(gui, "Vehicle", UDim2.new(0, 200, 0, 44), UDim2.new(0, 16, 1, -70))
@@ -381,6 +403,11 @@ function HudController.init()
 			refs.cuff.Visible = d.cuffing > 0
 			refs.cuffFill.Size = UDim2.new(d.cuffing, 0, 1, 0)
 		end
+		if d.crackProgress ~= nil then
+			refs.crack.Visible = d.crackProgress > 0
+			refs.crackFill.Size = UDim2.new(d.crackProgress, 0, 1, 0)
+			refs.crackText.Text = if d.crackAssist then "Cracking the safe (assisted)" else "Cracking the safe — stay close"
+		end
 		if d.vehicleHealth ~= nil then
 			refs.vehicle.Visible = true
 			refs.vehicleText.Text = string.format("Vehicle %d / %d", d.vehicleHealth, d.vehicleMaxHealth or d.vehicleHealth)
@@ -396,6 +423,30 @@ function HudController.init()
 		setLog(d.entries or {})
 	end)
 	Net.event("Jail").OnClientEvent:Connect(setJail)
+	Net.event("HideoutState").OnClientEvent:Connect(function(h)
+		refs.stash.Text = string.format("stash %s · tier %d", fmt(h.stash or 0), h.tier or 0)
+	end)
+	Net.event("RaidState").OnClientEvent:Connect(function(r)
+		if not r.active then
+			refs.raid.Visible = false
+			return
+		end
+		refs.raid.Visible = true
+		local parts = {}
+		table.insert(parts, if r.shieldDown then "shield down" else "shield up")
+		table.insert(parts, if r.doorOpen then "pier door open" else "pier door shut")
+		table.insert(parts, if r.alarmed then "ALARM" else "quiet")
+		table.insert(parts, if r.cracked then string.format("safe open: %s out, %s kept", fmt(r.stolen or 0), fmt(r.retained or 0)) else "safe shut")
+		table.insert(parts, string.format("%d:%02d left", math.floor((r.secondsLeft or 0) / 60), (r.secondsLeft or 0) % 60))
+		if r.defending then
+			refs.raidTitle.Text = string.format("YOUR HIDEOUT IS UNDER RAID — %s's crew (%d)", r.raiderName or "?", r.crewSize or 1)
+			refs.raidTitle.TextColor3 = Theme.Alarm
+		else
+			refs.raidTitle.Text = string.format("Raid: %s's hideout (tier %d) at %s", r.targetName or "?", r.tier or 0, r.unitLabel or "?")
+			refs.raidTitle.TextColor3 = Theme.Gold
+		end
+		refs.raidText.Text = table.concat(parts, " · ")
+	end)
 	Net.event("Detection").OnClientEvent:Connect(function(d)
 		state.detection = math.max(state.detection, d.level or 0)
 		state.detectionAt = os.clock()

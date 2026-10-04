@@ -1,4 +1,4 @@
-# Test Results — milestone `m2-first-heist` (2026-10-04)
+# Test Results — milestone `m3-hideouts` (2026-10-04)
 
 Verification levels: **SOURCE IMPLEMENTED** → **AUTOMATED CHECKS PASSED** → **STUDIO PLAYTESTED** → **LIVE VERIFIED**.
 
@@ -9,11 +9,11 @@ This environment has no Roblox Studio and no Roblox network access. Everything b
 |---|---|
 | `luau-lsp analyze` against Roblox API definitions, whole `src/` | 0 errors |
 | Selene lint (`roblox.yml` globals, Luau mode) | 0 errors, 0 warnings |
-| Logic tests via the Luau CLI (`tools/run-tests.luau`) | 42 passed, 0 failed |
+| Logic tests via the Luau CLI (`tools/run-tests.luau`) | 52 passed, 0 failed |
 | `rojo build` → `build/Glasshouse.rbxl` | built (130 KB) |
 | Map invariants (roads on-island and axis aligned; buildings never overlap roads, reserved zones or each other; 6 spaced hideouts; one connected drivable road network; pedestrian lanes excluded from driving) | passed |
 
-Logic tests cover: loot identity and one-time delivery, hands-full and trunk capacity, trunk spills, arrest drops; payout split validation, forfeits and rounding; job phases, auto-close reasons, bounded log, "Busted/Clean/Loud/Empty" headlines; security escalation, sneaking rate, decay, lockdown timing, calm-down, camera/power windows; police heat levels, decay-only-when-unseen, vehicle recognition expiry; rate limiting; rare-car weekly cycle, 120 s break-in interruption, repeated steal-backs, weekly reset; bounty stacking, single payout, self/contributor/crewmate/cooldown rejection, refunds; road graph connectivity.
+Logic tests cover: loot identity and one-time delivery, hands-full and trunk capacity, trunk spills, arrest drops; payout split validation, forfeits and rounding; job phases, auto-close reasons, bounded log, "Busted/Clean/Loud/Empty" headlines; security escalation, sneaking rate, decay, lockdown timing, calm-down, camera/power windows; police heat levels, decay-only-when-unseen, vehicle recognition expiry; rate limiting; rare-car weekly cycle, 120 s break-in interruption, repeated steal-backs, weekly reset; bounty stacking, single payout, self/contributor/crewmate/cooldown rejection, refunds; road graph connectivity; stash exposure (floor, fraction, cap), bundle splitting, tier unlocks and crack/breaker times, bank fee; hideout record migration, deposit/upgrade/bank rules, the exclusive raid lock across servers and attackers (wrong holder cannot crack or release, expiry takeover, cooldown), owner blocked from banking/upgrading mid-raid, retention, report cap and unread count, minted bundles advancing a job.
 
 ## Required journeys — status
 | Journey | Status |
@@ -26,11 +26,12 @@ Logic tests cover: loot identity and one-time delivery, hands-full and trunk cap
 | Simultaneous claims on one bag | Ledger is single-threaded on the server: second pickUp fails ("not available"); logic-tested |
 | Invalid / repeated / out-of-range requests | Rate limiter tested; distance validation implemented, not playtested |
 | Stacked bounties, one payout | Logic-tested; **not integrated** into the world |
-| Concurrent access to an offline stash | **Not implemented** (raids are a later milestone) |
+| Concurrent access to an offline stash | Logic-tested (`hideout_record.spec`): one lock, atomic debit on the stored value, no cached writes. **Not verified against a live DataStore from two servers.** |
 | Human police arriving during NPC fallback | **Not implemented** (no human police faction yet) |
 | Interrupted rare-car theft, repeated transfers, weekly reset | Logic-tested; **not integrated** |
 | Saving and rejoining | SOURCE IMPLEMENTED (session lock, never-overwrite-on-failure), not verified against a live DataStore |
-| Cosmetic ownership surviving defeat | Profile field exists; no cosmetics exist yet |
+| Cosmetic ownership surviving defeat and raids | Profile field exists and raids never touch profiles; no cosmetics exist yet |
+| Hideout raid: entry, crack, bundles, retention, report | SOURCE IMPLEMENTED, not playtested |
 | Touch and controller completion | Bindings and touch buttons implemented; not device-tested |
 | Performance (30 FPS midrange mobile, 60 FPS desktop) | **Not measured**. Part budget: roughly 2,000–2,500 generated parts, ~60 point/spot lights, 14 NPCs, 15 constraint vehicles. |
 
@@ -40,3 +41,5 @@ Logic tests cover: loot identity and one-time delivery, hands-full and trunk cap
 3. Navmesh for guard chases on the generated museum (PathfindingService on runtime-built parts).
 4. `SetNetworkOwner` on driven cars is wrapped in `pcall`; verify ownership transfers on seat/unseat.
 5. Dropped bags near walls (spawned 2.5 studs ahead of the player) could clip; a 8 s underground recovery exists.
+6. Laser beam heights (1.8 low / 6.4 high) against R15 jump height; `Touched` on anchored non-colliding beams.
+7. OrderedDataStore index for the raid list and the per-join `GetAsync` budget with 12 players (about 24 reads/min plus writes on payouts).

@@ -36,6 +36,21 @@ end
 local function objectiveFor(job): (string, string)
 	local phase = job.flow:phase()
 	local unit = job.crew.unit and job.crew.unit.label or "your pier"
+	if job.raid then
+		local r = job.raid
+		if not r.active then
+			return "Raid over", ""
+		elseif r.entry == nil then
+			return "Break into " .. r.targetName .. "'s hideout", r.unit.label .. ": cut the shield breaker on the outside wall, or the pier door at the back. Lasers inside drop your bag."
+		elseif not r.cracked then
+			return "Crack the safe", "Stay on the safe. A crewmate beside you halves the time. Laser trips can lock it."
+		elseif r.stolen == 0 then
+			return "Nothing above the floor", "The safe was nearly empty. Close the job from the board or wait it out."
+		elseif phase == "Escaping" or phase == "LootTaken" then
+			return "Get the bundles home", "Deliver to " .. unit .. ". Bags left inside the hideout for 8 s go back into their safe."
+		end
+		return "Grab the bundles", "They're on the floor by the safe. One per trip, or use a trunk."
+	end
 	if phase == "Started" then
 		return "Get to the Aurora Exchange", "North of Aurora Plaza. Front (loud), loading dock (code), or the parking-deck roof."
 	elseif phase == "OnSite" then
@@ -52,7 +67,7 @@ local function pushHud(job)
 	local title, sub = objectiveFor(job)
 	local phase = job.flow:phase()
 	local M = Blueprint.Museum
-	local target = if phase == "Escaping" then (job.crew.unit and job.crew.unit.spawn.Position or nil) elseif phase ~= "Closed" then Vector3.new(M.x, 3, M.z + M.d / 2 + 10) else nil
+	local target = if phase == "Escaping" then (job.crew.unit and job.crew.unit.spawn.Position or nil) elseif job.raid and job.raid.active then job.raid.unit.spawn.Position elseif phase ~= "Closed" then Vector3.new(M.x, 3, M.z + M.d / 2 + 10) else nil
 	local snapshot = {
 		targetX = target and target.X or nil,
 		targetZ = target and target.Z or nil,
@@ -62,6 +77,7 @@ local function pushHud(job)
 		objectiveDetail = sub,
 		deliveredValue = job.flow.job.deliveredValue,
 		startedAt = job.flow.job.startedAt,
+		isRaid = job.raid ~= nil,
 	}
 	for _, p in ipairs(job.crew.members) do
 		Net.event("MissionState"):FireClient(p, snapshot)
@@ -93,7 +109,7 @@ function MissionService.startJob(player: Player, silent: boolean?)
 	jobCounter += 1
 	local jobId = string.format("job%d_%s", jobCounter, crew.id)
 	local flow = MissionFlow.new(jobId, crew.id, memberKeys(crew), now)
-	local job = { flow = flow, shares = table.clone(crew.shares), lastDeliverer = nil, lastPhase = "Started", crew = crew, resolvedAt = nil }
+	local job = { flow = flow, shares = table.clone(crew.shares), lastDeliverer = nil, lastPhase = "Started", crew = crew, resolvedAt = nil, raid = nil }
 	jobs[crew.id] = job
 	-- If any member is already inside the museum, the job is on site immediately
 	for _, p in ipairs(crew.members) do
@@ -117,6 +133,9 @@ local function closeJob(crewId: string, reason: string)
 	end
 	local flow = job.flow
 	flow:close(reason)
+	if job.raid then
+		MissionService.ctx.services.Raid.onJobClosed(crewId, reason)
+	end
 	local present = flow:presentMembers()
 	local deliverer = job.lastDeliverer and Comms.key(job.lastDeliverer) or nil
 	local payouts = SplitLedger.distribute(flow.job.deliveredValue, job.shares, present, deliverer)
@@ -126,7 +145,11 @@ local function closeJob(crewId: string, reason: string)
 	for key, amount in pairs(payouts) do
 		local p = playerByKey(key)
 		if p and amount > 0 then
-			Economy.credit(p, amount, "job payout " .. flow.job.id)
+			if Config.Hideout.PayoutsToStash then
+				MissionService.ctx.services.Hideout.depositStash(p, amount, "job payout " .. flow.job.id)
+			else
+				Economy.credit(p, amount, "job payout " .. flow.job.id)
+			end
 			Economy.bumpStat(p, "delivered", amount)
 		end
 		table.insert(payoutRows, { userId = tonumber(key), name = p and Comms.name(p) or key, amount = amount, share = job.shares[key] or 0 })
@@ -156,7 +179,7 @@ local function closeJob(crewId: string, reason: string)
 		payouts = payoutRows,
 		lines = lines,
 		durationSeconds = (flow.job.closedAt or now()) - flow.job.startedAt,
-		next = "Walk to the job board to run it again. The museum restocks on its own cycle.",
+		next = if job.raid then "Payouts went to your hideout stash. Bank some from the board's Hideout tab if you want it safe." else "Walk to the job board to run it again. Payouts sit in your stash: bank or spend on defences from the Hideout tab.",
 	}
 	for _, p in ipairs(job.crew.members) do
 		Net.event("Results"):FireClient(p, results)
@@ -164,6 +187,30 @@ local function closeJob(crewId: string, reason: string)
 	end
 	pushHud(job)
 	MissionService.ctx.services.Crew.broadcast(job.crew)
+end
+
+function MissionService.closeJobOfCrew(crewId: string, reason: string)
+	closeJob(crewId, reason)
+end
+
+-- Start a raid job for the raider's crew (same phases and payout path as a heist).
+function MissionService.startRaidJob(player: Player, raid)
+	local job = MissionService.startJob(player, true)
+	if job then
+		job.raid = raid
+		job.flow:log("start", nil, "Raid on " .. raid.targetName .. "'s hideout at " .. raid.unit.label)
+		pushHud(job)
+	end
+	return job
+end
+
+-- Minted bundles belong to the crew's job from the moment they exist (touched + phase LootTaken).
+function MissionService.minted(crewId: string, itemIds: { string }, label: string)
+	local job = jobs[crewId]
+	if job and job.flow:isActive() then
+		job.flow:lootMinted(itemIds, label)
+		pushHud(job)
+	end
 end
 
 function MissionService.closeJobByPlayer(player: Player)
@@ -295,6 +342,10 @@ local function tick()
 				local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
 				if root then
 					local inside = Security.isInsideBounds(root.Position)
+					if job.raid and job.raid.active then
+						local b = job.raid.unit.bounds
+						inside = root.Position.X >= b.minX and root.Position.X <= b.maxX and root.Position.Z >= b.minZ and root.Position.Z <= b.maxZ
+					end
 					if inside then
 						job.flow:memberEnteredSite(Comms.key(p))
 					elseif job.flow:phase() == "LootTaken" then

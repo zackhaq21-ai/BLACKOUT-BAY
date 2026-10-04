@@ -77,11 +77,18 @@ function HideoutBuilder.build(root: Folder)
 	for i, h in ipairs(Blueprint.Hideouts) do
 		table.insert(units, buildUnit(folder, h, i))
 	end
+	local lockup = buildUnit(folder, Blueprint.Lockup, 7)
+	lockup.isLockup = true
+	local boardGui = lockup.board:FindFirstChild("Label")
+	local tl = boardGui and boardGui:FindFirstChildWhichIsA("TextLabel", true)
+	if tl then
+		tl.Text = "BREAKWATER LOCKUP\nraided hideouts appear here"
+	end
 	-- Harbour promenade between the units and Dockside Street, plus water-side lamps
 	local first, last = Blueprint.Hideouts[1], Blueprint.Hideouts[#Blueprint.Hideouts]
 	local cx = (first.x + last.x) / 2
 	Builder.box(folder, cx, 0, 322, (last.x - first.x) + first.w + 20, 1.2, 14, { name = "Promenade", material = Enum.Material.Cobblestone, color = Palette.Pavement })
-	return units
+	return units, lockup
 end
 
 return HideoutBuilder

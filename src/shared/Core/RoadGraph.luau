@@ -31,7 +31,7 @@ function RoadGraph.new(roads: { Road }): RoadGraph
 		lookup[k] = id
 		return id
 	end
-	local drivable = {}
+	local drivable: { Road } = {}
 	for _, r in ipairs(roads) do
 		if not r.pedestrian then
 			table.insert(drivable, r)

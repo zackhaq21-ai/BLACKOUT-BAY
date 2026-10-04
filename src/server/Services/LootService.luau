@@ -25,6 +25,7 @@ local KIND_COLORS = {
 	Relic = Palette.WarmWood,
 	Jewel = Palette.Gold,
 	Core = Palette.SeaGlass,
+	Bundle = Palette.Gold,
 }
 
 function LootService.init(ctx)
@@ -501,6 +502,50 @@ function LootService.restockMuseum(seed: number)
 	visuals[coreId] = m
 	Builder.prompt(m.PrimaryPart, "Lift the Aurora Core", "Heavy: slow, no climbing, no jumping", 1.5, "LootTake", { ItemId = coreId })
 	LootService.coreItemId = coreId
+end
+
+-- Mint stolen stash as physical bundles on the floor. Returns the new item ids.
+function LootService.mintBundles(values: { number }, position: Vector3, origin: string): { string }
+	local ids = {}
+	for i, value in ipairs(values) do
+		itemCounter += 1
+		local id = string.format("Bundle_%d", itemCounter)
+		local spec = Config.Economy.Loot.Bundle
+		ledger:register({ id = id, kind = "Bundle", label = spec.label, value = value, weight = "Light", position = position, origin = origin })
+		local item = ledger:get(id)
+		item.state = "Dropped"
+		item.position = position
+		renderDropped(item, position + Vector3.new((i - 1) * 2.2 - (#values - 1) * 1.1, 0, 0))
+		lastCrewTouch[id] = nil
+		table.insert(ids, id)
+	end
+	return ids
+end
+
+-- Every dropped item with its current world position (for retention and recovery).
+function LootService.droppedItems(): { { item: any, position: Vector3 } }
+	local out = {}
+	for id, item in pairs(ledger.items) do
+		if item.state == "Dropped" then
+			local v = visuals[id]
+			local pos = if v and v.PrimaryPart then v.PrimaryPart.Position else item.position
+			if typeof(pos) == "Vector3" then
+				table.insert(out, { item = item, position = pos })
+			end
+		end
+	end
+	return out
+end
+
+-- Remove an item from the world for good (retained by defences, recovered, etc.).
+function LootService.absorb(itemId: string, note: string)
+	local item = ledger:get(itemId)
+	if not item then
+		return
+	end
+	ledger:destroy(itemId, note)
+	clearVisual(itemId)
+	emit("absorbed", { item = item, note = note, crewId = lastCrewTouch[itemId] })
 end
 
 function LootService.museumStockRemaining(): number

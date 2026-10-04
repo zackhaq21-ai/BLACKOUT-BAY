@@ -33,6 +33,7 @@ Config.Economy = {
 		Relic = { value = 900, weight = "Light", label = "Harbour Relic" },
 		Jewel = { value = 1800, weight = "Light", label = "Aurora Jewel" },
 		Core = { value = 7500, weight = "Heavy", label = "Aurora Core" },
+		Bundle = { value = 0, weight = "Light", label = "Stash Bundle" }, -- value set per bundle when minted
 	},
 }
 
@@ -123,6 +124,40 @@ Config.Audio = {
 		Pickup = "", Drop = "", Deliver = "", Alarm = "", Suspicious = "", Lockdown = "",
 		Smash = "", Drill = "", Keypad = "", Unlock = "", Siren = "", Payout = "", Arrest = "", PowerCut = "",
 	},
+}
+
+-- Hideout stash and raids. PROTOTYPE RULES, explicit and configurable. Neither full wipes nor fully protected
+-- banking were approved; these numbers are the labelled assumption until the owner decides.
+Config.Hideout = {
+	PayoutsToStash = true, -- job payouts land in the hideout safe (raidable), not the wallet
+	ProtectedFloor = 1000, -- the first N in a stash can never be taken by a raid
+	ExposedFraction = 0.35, -- a successful raid takes this share of the stash above the floor...
+	MaxExposedPerRaid = 15000, -- ...capped per raid
+	BankFeeFraction = 0.10, -- moving stash -> wallet costs this fee (the wallet is never raided)
+	BankCooldownSeconds = 120,
+	BundleValue = 2500, -- stolen stash is minted as physical bundles of at most this value
+	RetainSeconds = 8, -- a bag left unattended inside a hideout for this long is absorbed into its safe
+	RaidMaxSeconds = 420, -- a raid lock expires after this long (crash safety)
+	RaidCooldownSeconds = 600, -- the same hideout cannot be raided again for this long
+	RaidListSize = 8, -- richest offline hideouts shown on the raid board
+	RecoveryWindowSeconds = 1200, -- how long a recovery opportunity stays open after a raid
+	MaxReports = 10,
+	-- Six tiers. Each tier adds one defence or strengthens one; costs are paid from the stash.
+	Tiers = {
+		[1] = { cost = 1500, unlock = "Lock", desc = "Safe lock: cracking takes 25 s" },
+		[2] = { cost = 3000, unlock = "Alarm", desc = "Alarm: owner and police are notified when the shield or safe is touched" },
+		[3] = { cost = 5000, unlock = "Shield", desc = "Bay shield: entry needs the breaker (18 s) or the pier door" },
+		[4] = { cost = 8000, unlock = "Lasers", desc = "Laser traps: a trip drops your bag and stuns you 3 s" },
+		[5] = { cost = 12000, unlock = "Shield2", desc = "Reinforced shield: breaker takes 30 s and the pier door is barred" },
+		[6] = { cost = 18000, unlock = "Lasers2", desc = "Sweeping lasers: beams move; a trip also locks the safe 20 s" },
+	},
+	SafeCrackSeconds = { [0] = 12, [1] = 25, [2] = 25, [3] = 25, [4] = 32, [5] = 32, [6] = 40 },
+	CrackAssistFactor = 0.55, -- a second crew member on the safe multiplies the time by this
+	BreakerSeconds = { [3] = 18, [4] = 18, [5] = 30, [6] = 30 },
+	PierDoorSeconds = 10, -- cutting the pier back door (barred at tier 5+)
+	LaserStunSeconds = 3,
+	LaserSafeLockSeconds = 20,
+	AlarmHeat = 80, -- police heat for raiders when the alarm trips
 }
 
 -- Rare-car weekly cycle (logic implemented; not yet in the player flow)

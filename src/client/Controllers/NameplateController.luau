@@ -74,7 +74,7 @@ local function refresh()
 			local colorIndex = other:GetAttribute("CrewColor") or 1
 			local sameCrew = crewId ~= nil and crewId == myCrew
 			plate.name.TextColor3 = if sameCrew then Palette.CrewColors[colorIndex] or Theme.Accent else Theme.Text
-			local parts = { fmt(other:GetAttribute("Cash") or 0) }
+			local parts = { "stash " .. fmt(other:GetAttribute("Stash") or 0) .. " · T" .. tostring(other:GetAttribute("HideoutTier") or 0) }
 			local carrying = other:GetAttribute("Carrying")
 			if carrying then
 				table.insert(parts, "carrying " .. carrying)
