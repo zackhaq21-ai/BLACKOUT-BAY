@@ -26,7 +26,8 @@ Or run `rojo serve` and connect the Rojo Studio plugin to live-sync.
 2. Client B opens the board → **Raids** tab → **Raid** on A. Expected: B's objective says "Break into A's hideout" at A's pier (A is online and leads a crew). A sees a red raid panel.
 3. B cuts the **shield breaker** on the unit's outside wall (hold E), walks to the safe, holds the prompt once; a gold "Cracking the safe" bar fills over ~25 s. Expected: bundles for A's ENTIRE stash appear by the safe; A's stash reads 0 and A is told the safe was cracked.
 4. B leaves a bundle on the floor for 8 s: it vanishes and A's stash goes back up ("defences kept"). B carries another bundle to B's own pier delivery table: B's stash goes up after the job closes.
-5. A leaves the server. B opens Raids again: A is now listed at the **Breakwater Lockup** (east of the piers). A rejoining later gets "Your hideout was raided while you were away" and the report in the Hideout tab.
+5. Recovery: back on A, open the board → **Hideout** tab. The raid report lists the clue trail ("B picked up Stash of A near Harbour Piers", "B delivered…") and a gold **Recover** button with the amount owed and minutes left. Press it: the objective points at B's pier. Crack B's safe the same way; only what B took comes out, labelled "Stash of A". Carry it to A's delivery table. Expected: A's stash is back to the stolen amount, B's stash dropped by exactly that, and the report shows "Recovered". Pressing Recover again is refused.
+6. A leaves the server. B opens Raids again: A is now listed at the **Breakwater Lockup** (east of the piers). A rejoining later gets "Your hideout was raided while you were away" and the report in the Hideout tab.
 
 ## Controls
 | Action | Keyboard / mouse | Controller | Touch |
