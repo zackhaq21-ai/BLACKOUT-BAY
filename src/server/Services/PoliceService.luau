@@ -81,8 +81,28 @@ function PoliceService.wanted(): { string }
 	return heat:wanted()
 end
 
+-- Harbour blackout: cruisers see less and cannot read plates in the dark (already-known plates stay known).
+local gridDown = false
+local visionScale = 1
+
+function PoliceService.setGridDown(down: boolean, scale: number)
+	gridDown = down
+	visionScale = if down then math.clamp(scale, 0.25, 1) else 1
+end
+
+function PoliceService.visionScale(): number
+	return visionScale
+end
+
+function PoliceService.clearHeat(player: Player, reason: string?)
+	heat:clear(Comms.key(player), reason or "cleared")
+end
+
 function PoliceService.recognizeVehicle(vehicleId: string)
 	local rec = PoliceService.ctx.services.Vehicle.get(vehicleId)
+	if gridDown and not heat:isVehicleRecognized(vehicleId, now()) then
+		return
+	end
 	if rec and not heat:isVehicleRecognized(vehicleId, now()) and rec.driver then
 		Comms.toast(rec.driver, "Police have your " .. rec.label .. "'s plate. Swap cars or lose them.", "alarm")
 	end

@@ -117,7 +117,7 @@ function CopBrain:canSee(root: BasePart): boolean
 	local diff = self:difficulty()
 	local eye = self.rec.chassis.Position + Vector3.new(0, 3, 0)
 	local to = root.Position - eye
-	if to.Magnitude > diff.viewDistance then
+	if to.Magnitude > diff.viewDistance * self.ctx.services.Police.visionScale() then
 		return false
 	end
 	rayParams.FilterDescendantsInstances = { self.rec.model, self.ctx.world.lootFolder, self.ctx.world.npcFolder }

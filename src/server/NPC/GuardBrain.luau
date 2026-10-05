@@ -109,11 +109,12 @@ function GuardBrain:tick(dt: number, now: number, vision)
 	local level = self.security.level
 	-- Perception
 	local bestSeen, bestDist = nil, math.huge
+	local viewDistance = cfg.GuardViewDistance * (if vision.viewScale then vision.viewScale() else 1)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local root = vision.playerRoot(player)
 		if root and vision.insideOrNear(root.Position) then
 			local d = (root.Position - self:position()).Magnitude
-			if d <= cfg.GuardViewDistance and vision.canSee(self:eyeCFrame(), root, cfg.GuardViewDistance, cfg.GuardViewAngle, self.model) then
+			if d <= viewDistance and vision.canSee(self:eyeCFrame(), root, viewDistance, cfg.GuardViewAngle, self.model) then
 				local v = self.security:report(self.id, self.label, tostring(player.UserId), dt, player:GetAttribute("Sneaking") == true, now)
 				vision.onSeen(player, self, v)
 				if d < bestDist then

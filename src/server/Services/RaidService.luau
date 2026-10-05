@@ -80,8 +80,47 @@ local function setAlarmVisual(state, on: boolean)
 	end
 end
 
+-- Harbour blackout: powered shields drop and lasers die on every unit; restored when the grid returns
+-- unless the raid already cut the breaker. Idempotent.
+local gridDown = false
+local function setLasers(state, on: boolean)
+	if not state.refs.lasers then
+		return
+	end
+	for _, beam in ipairs(state.refs.lasers) do
+		beam.Transparency = if on then 0 else 1
+	end
+end
+
+function RaidService.setGridDown(down: boolean)
+	if gridDown == down then
+		return
+	end
+	gridDown = down
+	for _, state in pairs(units) do
+		if down then
+			if not state.shieldDown then
+				state.gridShield = true
+				setShield(state, true)
+			end
+			setLasers(state, false)
+		else
+			if state.gridShield then
+				state.gridShield = nil
+				setShield(state, false)
+			end
+			setLasers(state, true)
+		end
+	end
+end
+
+function RaidService.isGridDown(): boolean
+	return gridDown
+end
+
 local function resetUnit(state)
-	setShield(state, false)
+	state.gridShield = if gridDown then true else nil
+	setShield(state, gridDown)
 	setDoor(state, false)
 	setAlarmVisual(state, false)
 	state.alarmed = false
@@ -105,6 +144,11 @@ function RaidService.bindUnit(unit, ownerUserId: number, ownerName: string, tier
 	local refs = DefenseBuilder.build(unit, tier, ownerName)
 	local state = { unit = unit, ownerUserId = ownerUserId, ownerName = ownerName, tier = tier, refs = refs, shieldDown = false, doorOpen = false, alarmed = false, safeLockedUntil = 0, cracked = false, cracking = {}, retainTimers = {} }
 	units[unit.id] = state
+	if gridDown then
+		state.gridShield = true
+		setShield(state, true)
+		setLasers(state, false)
+	end
 	if refs.breaker then
 		Builder.prompt(refs.breaker, "Cut the breaker", string.format("Shield breaker (%d s)", StashRules.breakerSeconds(HC, tier) or 18), StashRules.breakerSeconds(HC, tier) or 18, "RaidBreaker", { UnitId = unit.id })
 	end
@@ -456,6 +500,7 @@ function RaidService.onBreaker(player: Player, prompt: ProximityPrompt)
 	if state.shieldDown then
 		return
 	end
+	state.gridShield = nil
 	setShield(state, true)
 	raid.entry = raid.entry or "cut the shield breaker"
 	table.insert(raid.triggered, "shield breaker cut")
@@ -528,6 +573,9 @@ function RaidService.onLaserTouched(unitId: string, hit: BasePart)
 	local state = units[unitId]
 	if not state then
 		return
+	end
+	if gridDown then
+		return -- lasers are unpowered during a blackout
 	end
 	local char = hit:FindFirstAncestorOfClass("Model")
 	local player = char and Players:GetPlayerFromCharacter(char)

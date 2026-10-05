@@ -131,6 +131,44 @@ local ok, result = xpcall(function()
 	assert(#hook:Invoke("carried", leader) == 0, "Stow failed")
 	trigger(leader, trunk, "Trunk")
 	assert(#hook:Invoke("carried", leader) == 1, "Take from trunk failed")
+	-- 5b. Blackout: a forged trigger does nothing; a server-timed hold by a crew member on a job cuts the grid
+	-- (lights out, emergency lamps on, cameras dead, NPC vision reduced, pier shields down, saboteur heat up);
+	-- a second cut is refused while active; anyone can reset it; a re-cut is refused by the cooldown.
+	step("blackout")
+	local sub = world.substation
+	local saboteur = list[#list]
+	move(saboteur, sub.cabinet.Position + Vector3.new(0, 2, -4))
+	hook:Invoke("trigger", saboteur, sub.cabinet, "GridSabotage")
+	task.wait(0.3)
+	assert(not hook:Invoke("worldEvent").blackout.active, "Forged trigger without a hold started a blackout")
+	local heatBefore = hook:Invoke("heat", saboteur)
+	assert(hook:Invoke("sabotage", saboteur), "Sabotage hold did not cut the grid")
+	local ev = hook:Invoke("worldEvent").blackout
+	assert(ev.active and ev.secondsLeft > 0 and ev.secondsLeft <= 180, "Blackout not active or unbounded: " .. HttpService:JSONEncode(ev))
+	local lights = hook:Invoke("gridLights")
+	assert(lights.total > 0 and lights.dark == lights.total, "Grid lights still on: " .. HttpService:JSONEncode(lights))
+	assert(lights.emergencyOn > 0, "Emergency lights did not come on")
+	local gs = hook:Invoke("gridState")
+	assert(gs.down and gs.guardView < 1 and gs.copView < 1 and gs.cameras == false and gs.raidGrid, "Blackout effects missing: " .. HttpService:JSONEncode(gs))
+	assert(hook:Invoke("heat", saboteur) > heatBefore, "Saboteur took no heat")
+	assert(not hook:Invoke("sabotage", saboteur), "A second cut was accepted while the grid was already down")
+	local resetter = list[math.max(1, #list - 1)]
+	move(resetter, sub.resetPanel.Position + Vector3.new(0, 2, 4))
+	assert(hook:Invoke("gridReset", resetter), "Grid reset hold did not restore power")
+	waitFor(function()
+		local s = hook:Invoke("gridState")
+		local l = hook:Invoke("gridLights")
+		return not s.down and s.guardView == 1 and s.copView == 1 and s.cameras and not s.raidGrid and l.dark == 0 and l.emergencyOn == 0
+	end, 5, "Grid restore left effects behind: " .. HttpService:JSONEncode(hook:Invoke("gridState")))
+	assert(not hook:Invoke("worldEvent").blackout.active, "Blackout still active after reset")
+	move(saboteur, sub.cabinet.Position + Vector3.new(0, 2, -4))
+	assert(not hook:Invoke("sabotage", saboteur), "Cooldown did not refuse an immediate second cut")
+	hook:Invoke("clearHeat", saboteur)
+	for _, p in ipairs(list) do
+		move(p, unit.spawn.Position + Vector3.new(0, 0, 4))
+	end
+	print("GLASSHOUSE_ENGINE_BLACKOUT_SUCCESS", args.count)
+
 	step("deliver")
 	local stashBefore = hook:Invoke("stash", leader).stash
 	move(leader, unit.deliveryTable.Position + Vector3.new(0, 3, 4))

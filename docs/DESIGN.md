@@ -85,10 +85,19 @@ Raiders leave clues; the victim gets a time-limited chance to get the **same** l
 - **Reputation.** A raid report offers "Put 500 on <raider>" so victims can turn a loss into pursuit. NPC police arrests do not pay bounties and do not clear them.
 - **Assumptions.** Amount bounds, hold time, range, stun and cooldown live in `Config.Bounty`; collusion handling is the rule set above (no related-account review yet).
 
+## Blackouts (implemented, review branch `claude/review-m8-blackouts`)
+A crew **on an active job** can cut the harbour grid at the **Harbour Substation** in the crane yard (6-second hold, loud). For 75 s: street lamps, lit windows, neon signs and pier lamps go dark; the sky drops to moonlight (never black); battery **emergency lamps** come on along the streets, at the museum, the piers, the plaza and the station; the museum's cameras die and its lockdown shutter lifts; **every pier shield drops and lasers lose power**; guards see 55% and cruisers 60% of their normal range and cannot read new plates. The lighthouse and the police station keep their own power.
+
+- **Cost and risk.** The saboteur takes +60 heat (wanted), everyone on the server is told the grid is down, and the crew log records who did it.
+- **Counterplay.** Anyone on foot can hold **Reset the grid** (8 s) at the same cabinet; a reset also starts the cooldown.
+- **Bounds.** One blackout at a time per server, duration and cooldown (300 s) are clamped by `BlackoutRules.definition`; `WorldEventRules` (pure, tested) owns start/expiry/cooldown. Restoration is idempotent and runs on expiry, reset, and (through the same handler) on any early stop.
+- **Authority.** Eligibility (alive, on foot, not jailed, crew job active, cooldown) is evaluated on the server at hold start, every hold tick and at completion; the hold is timed on the server; a forged `PromptTriggered` does nothing. The client only receives `WorldEvent` state (id, label, endsAt on the server clock) and draws a banner; late joiners get it from the bootstrap.
+- **Framework.** `WorldEventService` is a small registry (one instance per id, bounded duration, cooldown, handlers, replication) so armored convoys and later events plug in without new plumbing.
+
 ## Corrections carried over from the prototype thread (docs/ROADMAP.md in `prototype/aurora-v0`)
 - The rare car is owned by the **individual thief**, never automatically by the assisting crew; ownership survives crew changes for the rest of the weekly cycle. `RareCarCycle` already models the individual owner.
 - A crew member may **leak a hideout**, enabling stash raids and a comeback. (The raid board currently lists hideouts by visible wealth; leaking as a deliberate act is a later milestone.)
-- Blackouts need a server-bounded duration and cooldown; restore every affected system after host disconnect or restart.
+- Blackouts need a server-bounded duration and cooldown; restore every affected system after host disconnect or restart. (Done: see Blackouts above; a server restart rebuilds the world with the grid up.)
 - Recovery must transfer the **same** loot, never mint another copy. The bundle ids minted in a raid are the ids a recovery would move.
 - NPC police must not track omnisciently; solo must always keep an achievable escape. Human police switch-over must be safe.
 - Deferred, per the owner: cargo-ship heists, framing rivals, forced loot-vs-teammate choice. Canceled: the weekly rare gun.

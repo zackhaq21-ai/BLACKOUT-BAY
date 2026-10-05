@@ -92,6 +92,9 @@ local function buildRoads(root: Folder)
 					local head = Builder.box(lamps, lx, 15, lz, 2.5, 0.8, 2.5, { name = "LampHead", material = Enum.Material.Neon, color = Palette.WarmInterior, canCollide = false })
 					Builder.pointLight(head, Palette.WarmInterior, 1.2, 36)
 					pole.CastShadow = false
+					if i % 3 == 0 then
+						Builder.emergencyLight(lamps, lx, 8, lz)
+					end
 				end
 			end
 		end
@@ -127,7 +130,7 @@ local function buildBuilding(parent: Folder, b, rng: Random)
 		local cols = { Palette.Rust, Palette.SeaGlassDeep, Palette.Industrial, Palette.SecurityAmber }
 		for _ = 1, 6 do
 			local cx = b.x + rng:NextNumber(-b.w / 2 + 8, b.w / 2 - 8)
-			local cz = b.z + rng:NextNumber(-b.d / 2 + 10, b.d / 2 - 10)
+			local cz = b.z + rng:NextNumber(-b.d / 2 + 32, b.d / 2 - 10) -- the substation pad takes the near end
 			local stack = rng:NextInteger(1, 2)
 			for s = 0, stack - 1 do
 				Builder.box(m, cx, 1 + s * 8, cz, 12, 8, 20, { name = "Container", material = Enum.Material.Metal, color = cols[rng:NextInteger(1, #cols)] })
@@ -209,7 +212,44 @@ local function buildPlaza(root: Folder)
 		pole.CastShadow = false
 		local head = Builder.box(m, P.x + i * 120, 23, P.z - 40, 4, 1, 2, { name = "FloodHead", material = Enum.Material.Neon, color = Palette.Glass, canCollide = false })
 		Builder.spotLight(head, Palette.Glass, 1.6, 90, 70, Enum.NormalId.Bottom)
+		Builder.emergencyLight(m, P.x + i * 60, 6, P.z - 20)
 	end
+end
+
+-- Harbour Substation: the grid cabinet a crew on a job can sabotage (blackout) and anyone can reset.
+local function buildSubstation(root: Folder)
+	local S = Blueprint.Substation
+	local m = Builder.model(root, "Substation")
+	Builder.box(m, S.x, 0, S.z, S.w, 1.2, S.d, { name = "Pad", material = Enum.Material.Concrete, color = Palette.Industrial })
+	-- Chain-link fence (thin translucent walls) with a gap on the road side (south)
+	local fence = { material = Enum.Material.DiamondPlate, color = Palette.Industrial, canCollide = true, castShadow = false }
+	local north = Builder.box(m, S.x, 1, S.z + S.d / 2, S.w, 7, 0.4, fence)
+	north.Transparency = 0.45
+	for _, side in ipairs({ -1, 1 }) do
+		local w = Builder.box(m, S.x + side * S.w / 2, 1, S.z, 0.4, 7, S.d, fence)
+		w.Transparency = 0.45
+		local s = Builder.box(m, S.x + side * (S.w / 2 - 5), 1, S.z - S.d / 2, 10, 7, 0.4, fence)
+		s.Transparency = 0.45
+	end
+	-- Transformers: humming coils that glow until the grid drops
+	for i = -1, 1 do
+		local tx = S.x + i * 10
+		Builder.box(m, tx, 1.2, S.z + 3, 6, 6, 5, { name = "Transformer", material = Enum.Material.Metal, color = Palette.DarkAsphalt })
+		local coil = Builder.box(m, tx, 7.2, S.z + 3, 1.2, 3, 1.2, { name = "CoilGlow", material = Enum.Material.Neon, color = Palette.SeaGlass, canCollide = false })
+		Builder.pointLight(coil, Palette.SeaGlass, 0.8, 18)
+	end
+	Builder.box(m, S.x, 7.2, S.z + 3, 24, 0.3, 0.3, { name = "Busbar", material = Enum.Material.Metal, color = Palette.Rust, canCollide = false })
+	-- Grid cabinet (sabotage side faces the gate) and the reset panel on its back
+	local cabinet = Builder.box(m, S.x, 1.2, S.z - 3, 5, 6, 1.6, { name = "GridCabinet", material = Enum.Material.Metal, color = Palette.SecurityAmber })
+	Builder.label(cabinet, "HARBOUR GRID\nAUTHORISED PERSONNEL ONLY", Enum.NormalId.Front, Palette.Night)
+	local resetPanel = Builder.box(m, S.x, 2.2, S.z - 1.9, 3, 3, 0.6, { name = "ResetPanel", material = Enum.Material.Metal, color = Palette.Industrial })
+	Builder.label(resetPanel, "GRID RESET", Enum.NormalId.Back, Palette.SeaGlass)
+	local warningLight = Builder.box(m, S.x, 7.2, S.z - 3, 1, 1, 1, { name = "WarningLight", material = Enum.Material.Neon, color = Palette.SecurityAmber, canCollide = false })
+	Builder.pointLight(warningLight, Palette.SecurityAmber, 1.2, 22)
+	Builder.label(Builder.box(m, S.x, 8.2, S.z + S.d / 2, 20, 3, 0.4, { name = "Sign", material = Enum.Material.SmoothPlastic, color = Palette.Night, canCollide = false }), "HARBOUR SUBSTATION", Enum.NormalId.Front, Palette.SecurityAmber)
+	Builder.emergencyLight(m, S.x - 12, 6, S.z - 6)
+	Builder.emergencyLight(m, S.x + 12, 6, S.z - 6)
+	return { model = m, cabinet = cabinet, resetPanel = resetPanel, warningLight = warningLight }
 end
 
 local function buildLanternCross(root: Folder)
@@ -218,6 +258,7 @@ local function buildLanternCross(root: Folder)
 	Builder.box(m, L.signX, 1, L.signZ, 3, 36, 3, { name = "SignTower", material = Enum.Material.Metal, color = Palette.Industrial })
 	local sign = Builder.neonSign(m, CFrame.new(L.signX, 30, L.signZ + 4) * CFrame.Angles(0, math.rad(180), 0), Vector3.new(26, 10, 1), "LANTERN", Palette.NeonPink)
 	sign.Name = "LanternSign"
+	Builder.emergencyLight(m, L.x, 9, L.z)
 	Builder.neonSign(m, CFrame.new(L.signX + 4, 20, L.signZ) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(18, 6, 1), "CROSS", Palette.NeonCyan)
 	-- Hanging lanterns across the intersection corners
 	for _, dx in ipairs({ -20, 20 }) do
@@ -279,6 +320,7 @@ local function buildParkingDeck(root: Folder)
 	lamp.CastShadow = false
 	local head = Builder.box(m, x1 + 6, D.h + 11.5, gz, 2, 0.8, 2, { name = "DeckLampHead", material = Enum.Material.Neon, color = Palette.SecurityAmber, canCollide = false })
 	Builder.pointLight(head, Palette.SecurityAmber, 1.2, 30)
+	Builder.emergencyLight(m, x1 + 6, D.h + 3, gz + 6)
 	Builder.label(Builder.box(m, D.x, D.h + 1.5, z2 - 2, 30, 6, 0.5, { name = "DeckSign", material = Enum.Material.SmoothPlastic, color = Palette.Night, canCollide = false }), "PARKING DECK — ROOF", Enum.NormalId.Front, Palette.SecurityAmber)
 	return { roofY = D.h + 1.5, gantryZ = gz }
 end
@@ -360,7 +402,8 @@ function IslandBuilder.build(root: Folder)
 	buildLighthouse(root)
 	local deck = buildParkingDeck(root)
 	local station = buildPoliceStation(root)
-	return { deck = deck, station = station }
+	local substation = buildSubstation(root)
+	return { deck = deck, station = station, substation = substation }
 end
 
 return IslandBuilder

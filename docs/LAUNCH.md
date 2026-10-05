@@ -19,6 +19,9 @@ Or run `rojo serve` and connect the Rojo Studio plugin to live-sync.
 ## Bounties (two or more clients)
 Board → **Wanted** tab: type an amount (min 100) and press **Add bounty** on another player. Expected: your stash drops by that amount, their nameplate shows "BOUNTY n", everyone sees a WANTED notice. A third client who is not in the target's crew walks up to the target on foot and holds **Take down** for 2 s: the target drops their bag and is down for 4 s, the hunter's stash rises by the whole bounty, and the nameplate clears. The contributor pressing Take down is refused.
 
+## Blackout (any number of clients)
+Start a job, then drive or walk to the **Harbour Substation**: the fenced pad with three glowing coils at the near end of the crane yard (west side, south of the Cold Store, across the canal from the piers). Face the amber **HARBOUR GRID** cabinet and hold **Cut the grid** for 6 s. Expected: a BLACKOUT banner with a countdown at the bottom of the screen, street and pier lights out with amber emergency lamps on, the sky dims to moonlight (not black), "Police heat +60", the museum's cameras go dark and its shutter lifts, every pier's bay shield is open. Walk round to the back of the cabinet and hold **Reset the grid** for 8 s: lights return, the banner clears, and the cabinet refuses another cut for 5 minutes. Without an active job, or seated in a car, the cut is refused.
+
 ## Fake bags and decoy cars
 At your job board (Job tab → Getaway kit) press **Fake Jewel**. Expected: 150 leaves the leader's stash and you are carrying what looks like an Aurora Jewel; other players' nameplates say you carry a Jewel. Deliver it at your table: "That bag was a fake." A second client who picks a dropped fake up is told it is fake at once. For a decoy car, roll out the Courier as well, put the fake in one trunk and the real bags in the other, and send the fake the loud way.
 

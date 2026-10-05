@@ -2,20 +2,25 @@
 
 Keep this short. Current task, decisions, changed files, verification, blockers, next step.
 
-## Current state: review branch `claude/review-m7-bounties` (stacked on `claude/review-m6-decoys`, neither merged)
-Adds in-world bounties on top of fake bags, recovery and raids.
+## Current state: review branch `claude/review-m8-blackouts` (stacked on m7 ← m6 ← dev; none of the three merged)
+Adds the crew-triggered harbour blackout and a small world-event framework on top of bounties, fakes, recovery and raids.
 
 ### Done on this branch
-- `BountyRecord` (pure, tested) replaces the unused `BountyPool`: contributions stack on the target's hideout record, one atomic claim, refusals for self/contributor/crewmate/cooldown, refunds.
-- `BountyService`: debit-then-credit placement with refund on failure, takedown prompt on wanted players (2 s hold, 7 studs, on foot only), stun + bag drop, payout to the hunter's stash, logs and notices; Wanted tab with amount box; "Put 500 on <raider>" on raid reports; nameplates show bounties; engine scenario for 3+ players (contributor refused, hunter paid exactly once).
+- `WorldEventRules` (pure, tested): one active instance per event id, bounded duration, per-event cooldown counted from expiry or early stop. `WorldEventService`: registry + handlers + `WorldEvent` replication (server-clock `endsAt`), late-join sync, bootstrap snapshot.
+- `BlackoutRules` (pure, tested): sabotage eligibility (alive, on foot, not jailed, crew job active), reset open to anyone on foot, clamped NPC vision scale, clamped duration/cooldown.
+- `BlackoutService`: Harbour Substation prompts (server-timed holds; forged triggers ignored), grid-light inventory (lamps, lit windows, neon signs, pier lamps; lighthouse and police station keep power), moonlit Lighting tween (never black), battery emergency lamps, museum power cut + shutter lift via `SecurityService.setGridPower`, pier shields down + lasers unpowered via `RaidService.setGridDown`, guard/cop vision scale, no new plate reads, saboteur heat +60, announcements, crew log, idempotent restore.
+- Client: bottom-centre event banner with countdown, generic hold bar, bootstrap/reconnect handling. Engine scenario step `blackout` for 1/3/5 players; `docs/STUDIO_VERIFICATION_PENDING.md` created.
 
 ### Verification
-`tools/check.sh`: type check 0 errors, lint 0 warnings, 59/59 logic tests, both places build. Studio scenarios written, not run (no Studio here). Owner review (2026-10-05): bounties conditionally accepted; merge HELD until `tools\verify-engine.ps1 -Players 1,3,5` passes on the prepared PC and the live checklist in the review (funding, anti-exploit, concurrent claim, down/bag, crews, disconnects, police, UI, regression) is observed. Takedown hold is now server-timed; forged early triggers, seated hunters, jailed parties and out-of-range attempts are refused server-side.
+`tools/check.sh`: type check 0 errors, lint 0 warnings, 65/65 logic tests, both places build. Studio scenarios written, not run (no Studio here). Owner review of m7 (2026-10-05): merge HELD until live verification; m8 inherits that hold.
+
+### Earlier decisions still in force
+Full stash exposure on raids; banking enabled; bounty takedown range 7 studs everywhere; keep m6 and m7 pushed, separate, unmerged, in dependency order.
 
 ### Not implemented (from the full vision)
-Player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; district blackouts; convoys; weapons/combat beyond takedowns; live purchases; sound assets; custom art; performance profiling.
+Player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; convoys; weapons/combat beyond takedowns; live purchases; sound assets; custom art; performance profiling.
 
 ### Next task
 1. On the prepared PC: `tools\verify-engine.ps1 -Players 1,3,5`; fix what it reports; play by hand per `docs/LAUNCH.md`.
-2. Merge `claude/review-m6-decoys` then `claude/review-m7-bounties` if accepted (fast-forward in that order).
-3. Then: crew-triggered blackouts (district outage with bounded duration and cooldown), then armored convoys.
+2. Merge `claude/review-m6-decoys`, then `claude/review-m7-bounties`, then `claude/review-m8-blackouts` if accepted (fast-forward in that order).
+3. Then: armored convoys on `claude/review-m9-convoys` (stacked on m8, using `WorldEventService`), then polish batches.

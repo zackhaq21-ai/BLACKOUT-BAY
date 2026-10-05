@@ -47,6 +47,7 @@ local function buildUnit(parent: Folder, h, index: number)
 	Builder.pointLight(lamp, Palette.WarmInterior, 1.3, 40)
 	local bayLamp = Builder.box(m, h.x, ROOF_H - 1.5, z1 + 12, 6, 0.5, 6, { name = "BayLamp", material = Enum.Material.Neon, color = Palette.Glass, canCollide = false })
 	Builder.pointLight(bayLamp, Palette.Glass, 1, 36)
+	Builder.emergencyLight(m, h.x + 8, ROOF_H - 2.5, z1 + 12)
 	-- Garage floor markings
 	Builder.box(m, h.x, 1, z1 + 16, 12, 0.1, 24, { name = "BayLines", material = Enum.Material.SmoothPlastic, color = accent, canCollide = false, castShadow = false })
 	-- Pier behind the unit

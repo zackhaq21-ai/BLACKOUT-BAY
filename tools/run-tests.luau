@@ -8,6 +8,8 @@ local SPECS = {
 	"../tests/rate_limiter.spec",
 	"../tests/rare_car_cycle.spec",
 	"../tests/bounty_record.spec",
+	"../tests/world_event_rules.spec",
+	"../tests/blackout_rules.spec",
 	"../tests/heat.spec",
 	"../tests/map_blueprint.spec",
 	"../tests/road_graph.spec",

@@ -202,6 +202,7 @@ function InteractionService.start()
 			museumName = "Aurora Exchange",
 			buildTag = Config.BuildTag,
 			securityLevel = S.Security.level(),
+			worldEvents = S.WorldEvent.snapshot(),
 		}
 	end
 end

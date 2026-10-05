@@ -29,6 +29,9 @@ local officeCardModel = nil
 local listeners = {}
 local alarmOrigin = nil
 local camerasWereActive = nil
+local guardVisionScale = 1
+local junctionCutUntil = 0
+local gridPowerOff = false
 local lastNoiseAt = {} -- key -> time (throttle noise reports from held prompts)
 local frozen = false -- engine tests freeze guards and cameras to isolate rules
 
@@ -109,6 +112,9 @@ SecurityService.vision = {
 	end,
 	alarmOrigin = function()
 		return alarmOrigin
+	end,
+	viewScale = function()
+		return guardVisionScale
 	end,
 }
 
@@ -496,6 +502,58 @@ function SecurityService.onDockRelease(player: Player)
 	Comms.cue(player, "Unlock")
 end
 
+-- Dim the interior while the power is out (junction box or harbour blackout)
+local function setInteriorLights(on: boolean)
+	for _, c in ipairs(museum.model:GetChildren()) do
+		if c.Name == "CeilingLight" then
+			c.Material = if on then Enum.Material.Neon else Enum.Material.SmoothPlastic
+			local l = c:FindFirstChildOfClass("PointLight")
+			if l then
+				l.Brightness = if on then 1.1 else 0.2
+			end
+		end
+	end
+end
+
+-- Harbour grid (BlackoutService). Off: cameras dead, shutter lifted, interior dark for `seconds`.
+-- On: power returns unless a junction-box cut is still running; idempotent.
+function SecurityService.setGridPower(on: boolean, seconds: number)
+	local t = now()
+	if not on then
+		if gridPowerOff then
+			return
+		end
+		gridPowerOff = true
+		security:cutPower(t, math.max(1, seconds))
+		setShutter(false)
+		setInteriorLights(false)
+		return
+	end
+	if not gridPowerOff then
+		return
+	end
+	gridPowerOff = false
+	security.powerCutUntil = math.max(junctionCutUntil, 0)
+	if not security:powerCutActive(t) then
+		setInteriorLights(true)
+		if security.level >= 3 then
+			setShutter(true)
+		end
+	end
+end
+
+function SecurityService.setGuardVisionScale(scale: number)
+	guardVisionScale = math.clamp(scale, 0.25, 1)
+end
+
+function SecurityService.guardVisionScale(): number
+	return guardVisionScale
+end
+
+function SecurityService.camerasActive(): boolean
+	return security:camerasActive(now())
+end
+
 function SecurityService.onJunctionBox(player: Player)
 	local t = now()
 	local readyAt = museum.junctionBox:GetAttribute("ReadyAt") or 0
@@ -504,31 +562,15 @@ function SecurityService.onJunctionBox(player: Player)
 		return
 	end
 	museum.junctionBox:SetAttribute("ReadyAt", t + Config.Museum.PowerCutCooldownSeconds)
+	junctionCutUntil = t + Config.Museum.PowerCutSeconds
 	security:cutPower(t, Config.Museum.PowerCutSeconds)
 	setShutter(false)
 	Comms.cueAll("PowerCut")
 	Comms.toastMany(playersNearMuseum(), string.format("POWER CUT — cameras dark and the shutter lifted for %d s.", Config.Museum.PowerCutSeconds), "good")
-	-- Dim the interior while the power is out
-	for _, c in ipairs(museum.model:GetChildren()) do
-		if c.Name == "CeilingLight" then
-			c.Material = Enum.Material.SmoothPlastic
-			local l = c:FindFirstChildOfClass("PointLight")
-			if l then
-				l.Brightness = 0.2
-			end
-		end
-	end
+	setInteriorLights(false)
 	task.delay(Config.Museum.PowerCutSeconds, function()
-		if not security:powerCutActive(now()) then
-			for _, c in ipairs(museum.model:GetChildren()) do
-				if c.Name == "CeilingLight" then
-					c.Material = Enum.Material.Neon
-					local l = c:FindFirstChildOfClass("PointLight")
-					if l then
-						l.Brightness = 1.1
-					end
-				end
-			end
+		if not security:powerCutActive(now()) and not gridPowerOff then
+			setInteriorLights(true)
 			if security.level >= 3 then
 				setShutter(true)
 			end

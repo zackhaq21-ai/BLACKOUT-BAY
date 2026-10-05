@@ -123,6 +123,14 @@ function Builder.label(part: BasePart, text: string, face: Enum.NormalId, color:
 	return gui
 end
 
+-- Battery emergency lamp: dark until the grid goes down (BlackoutService switches it on).
+function Builder.emergencyLight(parent: Instance, x: number, y: number, z: number): Part
+	local p = Builder.box(parent, x, y, z, 1.4, 0.6, 1.4, { name = "EmergencyLight", material = Enum.Material.SmoothPlastic, color = Color3.fromRGB(70, 48, 20), canCollide = false, castShadow = false })
+	local l = Builder.pointLight(p, Palette.SecurityAmber, 0, 34)
+	l.Enabled = false
+	return p
+end
+
 function Builder.neonSign(parent: Instance, cf: CFrame, size: Vector3, text: string, color: Color3, face: Enum.NormalId?): Part
 	local p = Builder.part(parent, cf, size, { name = "NeonSign", material = Enum.Material.Neon, color = color, canCollide = false })
 	Builder.label(p, text, face or Enum.NormalId.Front, Palette.Night)

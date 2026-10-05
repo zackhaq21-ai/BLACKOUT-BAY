@@ -14,7 +14,7 @@ local HudController = {}
 local player = Players.LocalPlayer
 local gui
 local refs: { [string]: any } = {}
-local state = { cash = 0, crew = nil, mission = nil, carry = nil, security = 0, heat = 0, detection = 0, detectionAt = 0, detectionSource = nil, detectionPos = nil, keycards = {}, cuffing = 0, jailed = false }
+local state = { worldEvents = {}, cash = 0, crew = nil, mission = nil, carry = nil, security = 0, heat = 0, detection = 0, detectionAt = 0, detectionSource = nil, detectionPos = nil, keycards = {}, cuffing = 0, jailed = false }
 local logOpen = false
 
 local function fmt(n: number): string
@@ -193,6 +193,15 @@ local function build()
 	Make.list(scroll, 2)
 	refs.logList = scroll
 
+	-- World-event banner (bottom-centre, above the carry panel): what is happening, how long, where to counter it
+	local banner = Make.panel(gui, "WorldEvent", UDim2.new(0, 360, 0, 50), UDim2.new(0.5, -180, 1, -226))
+	banner.Visible = false
+	banner.BackgroundColor3 = Color3.fromRGB(34, 26, 14)
+	refs.banner = banner
+	refs.bannerTitle = Make.label(banner, "Title", "BLACKOUT", Theme.Body, Theme.Warn, true)
+	refs.bannerText = Make.label(banner, "Text", "", Theme.Small, Theme.Text)
+	refs.bannerText.Position = UDim2.new(0, 0, 0, 22)
+
 	-- Flash overlay for important sounds (visual equivalent, single soft fade, no strobe)
 	local flash = Make.frame(gui, "Flash", UDim2.fromScale(1, 1), UDim2.new(), Theme.Alarm, 1)
 	flash.ZIndex = 0
@@ -322,6 +331,37 @@ local function setLog(entries)
 	end
 end
 
+-- World events: one banner for the most urgent active event; countdown uses the server clock
+local EVENT_HINT = { blackout = "Street and pier power is out. Reset it at the Harbour Substation (crane yard)." }
+local function setWorldEvent(e)
+	if type(e) ~= "table" or type(e.id) ~= "string" then
+		return
+	end
+	state.worldEvents[e.id] = if e.active then e else nil
+	if e.id == "blackout" then
+		if e.active then
+			HudController.flash(Theme.Warn)
+		end
+	end
+end
+
+local function updateBanner()
+	local pick = nil
+	for _, e in pairs(state.worldEvents) do
+		if not pick or (e.endsAt or 0) > (pick.endsAt or 0) then
+			pick = e
+		end
+	end
+	if not pick then
+		refs.banner.Visible = false
+		return
+	end
+	local left = math.max(0, (pick.endsAt or 0) - workspace:GetServerTimeNow())
+	refs.banner.Visible = true
+	refs.bannerTitle.Text = string.format("%s · %d:%02d", tostring(pick.label or pick.id), math.floor(left / 60), math.floor(left % 60))
+	refs.bannerText.Text = EVENT_HINT[pick.id] or ""
+end
+
 local function setJail(j)
 	if j.state == "jailed" then
 		state.jailed = true
@@ -343,7 +383,13 @@ function HudController.setHints(text: string)
 end
 
 -- Per-frame: distance/direction to the objective, threat meter decay
+local bannerAt = 0
 local function step()
+	local tnow = os.clock()
+	if tnow - bannerAt > 0.25 then
+		bannerAt = tnow
+		updateBanner()
+	end
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if root and state.mission and state.mission.targetX then
@@ -403,6 +449,13 @@ function HudController.init()
 			refs.cuff.Visible = d.cuffing > 0
 			refs.cuffFill.Size = UDim2.new(d.cuffing, 0, 1, 0)
 		end
+		if d.holdProgress ~= nil then
+			refs.crack.Visible = d.holdProgress > 0
+			refs.crackFill.Size = UDim2.new(d.holdProgress, 0, 1, 0)
+			if d.holdText then
+				refs.crackText.Text = d.holdText
+			end
+		end
 		if d.crackProgress ~= nil then
 			refs.crack.Visible = d.crackProgress > 0
 			refs.crackFill.Size = UDim2.new(d.crackProgress, 0, 1, 0)
@@ -423,6 +476,7 @@ function HudController.init()
 		setLog(d.entries or {})
 	end)
 	Net.event("Jail").OnClientEvent:Connect(setJail)
+	Net.event("WorldEvent").OnClientEvent:Connect(setWorldEvent)
 	Net.event("HideoutState").OnClientEvent:Connect(function(h)
 		refs.stash.Text = if (h.stash or 0) > 0 then string.format("stash %s AT RISK · tier %d", fmt(h.stash or 0), h.tier or 0) else string.format("stash 0 · tier %d", h.tier or 0)
 		refs.stash.TextColor3 = if (h.stash or 0) > 0 then Theme.Warn else Theme.Accent
@@ -472,6 +526,11 @@ function HudController.applyBootstrap(b)
 	refs.cashNote.TextColor3 = if b.saveable then Theme.Muted else Theme.Warn
 	if b.crew then
 		setCrew(b.crew)
+	end
+	if type(b.worldEvents) == "table" then
+		for _, e in pairs(b.worldEvents) do
+			setWorldEvent(e)
+		end
 	end
 	setSecurity({ level = b.securityLevel or 0, label = ({ [0] = "Quiet", [1] = "Suspicious", [2] = "Alert", [3] = "Lockdown" })[b.securityLevel or 0] })
 end

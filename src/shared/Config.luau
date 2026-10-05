@@ -193,6 +193,20 @@ Config.Decoys = {
 	BundleMimicValue = 2500, -- the value a fake "Stash Bundle" pretends to carry
 }
 
+-- World events: server-authoritative, bounded, cooled down, replicated, cleaned up.
+Config.WorldEvents = {
+	Blackout = {
+		DurationSeconds = 75,
+		CooldownSeconds = 300, -- per server
+		SabotageSeconds = 6, -- hold at the substation breaker (loud)
+		ResetSeconds = 8, -- anyone can restore the grid early at the same cabinet
+		SaboteurHeat = 60,
+		GuardVisionScale = 0.55, -- museum guards see this fraction of their normal range
+		PoliceVisionScale = 0.6, -- cruisers see this fraction; plates cannot be read (no new recognitions)
+		RequiresActiveJob = true, -- only a crew on a job can cut the grid (cost/risk, no idle griefing)
+	},
+}
+
 -- Rare-car weekly cycle (logic implemented; not yet in the player flow)
 Config.RareCar = {
 	WeekAnchorUnix = 0, -- Thursday 1970-01-01 00:00 UTC; weeks counted from here

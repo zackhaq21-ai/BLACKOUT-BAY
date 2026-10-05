@@ -88,6 +88,7 @@ hook.OnInvoke = function(action, a, b, c)
 			corePedestal = museum.corePedestal.cframe,
 			lootFolder = ctx.world.lootFolder,
 			station = { cellDoor = ctx.world.island.station.cellDoor, releaseSwitch = ctx.world.island.station.releaseSwitch },
+			substation = { cabinet = ctx.world.island.substation.cabinet, resetPanel = ctx.world.island.substation.resetPanel },
 		}
 	elseif action == "unit" then
 		local crew = S.Crew.crewOf(a)
@@ -176,6 +177,19 @@ hook.OnInvoke = function(action, a, b, c)
 		return a:GetAttribute("Jailed") ~= true
 	elseif action == "heat" then
 		return S.Police.heatLevel(a)
+	elseif action == "clearHeat" then
+		S.Police.clearHeat(a, "engine test")
+		return S.Police.heatLevel(a)
+	elseif action == "sabotage" then
+		return S.Blackout.testHold(a, "sabotage")
+	elseif action == "gridReset" then
+		return S.Blackout.testHold(a, "reset")
+	elseif action == "worldEvent" then
+		return S.WorldEvent.snapshot()
+	elseif action == "gridLights" then
+		return S.Blackout.lightReport()
+	elseif action == "gridState" then
+		return { down = S.Blackout.isGridDown(), guardView = S.Security.guardVisionScale(), copView = S.Police.visionScale(), cameras = S.Security.camerasActive(), raidGrid = S.Raid.isGridDown() }
 	elseif action == "diagnostic" then
 		local r = root(a)
 		local h = a.Character and a.Character:FindFirstChildOfClass("Humanoid")

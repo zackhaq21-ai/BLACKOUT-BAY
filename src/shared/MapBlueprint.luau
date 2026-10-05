@@ -51,6 +51,9 @@ do
 	end
 end
 
+-- Harbour Substation: the grid cabinet a crew can sabotage (crew-triggered blackout). In the crane yard.
+Blueprint.Substation = { x = -440, z = 14, w = 36, d = 22 }
+
 -- Breakwater Lockup: where an offline owner's hideout is instantiated for a raid (same footprint as a pier unit).
 Blueprint.Lockup = { id = "lockup", label = "Breakwater Lockup", x = -180, z = 365, w = 48, d = 70, facing = 0 } :: Hideout
 
@@ -136,6 +139,7 @@ Blueprint.Landmarks = {
 	{ name = "Harbour Piers", x = -390, z = 365 },
 	{ name = "Lighthouse Point", x = 575, z = -470 },
 	{ name = "Police Station", x = 460, z = 215 },
+	{ name = "Harbour Substation", x = -440, z = 14 },
 	{ name = "Parking Deck", x = 215, z = -280 },
 	{ name = "Canal Lane", x = -80, z = -440 },
 }

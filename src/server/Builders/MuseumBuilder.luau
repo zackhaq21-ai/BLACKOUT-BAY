@@ -301,6 +301,11 @@ function MuseumBuilder.build(root: Folder)
 		local l = Builder.box(museum, x, H - 2, z, 8, 0.5, 8, { name = "CeilingLight", material = Enum.Material.Neon, color = Palette.WarmInterior, canCollide = false })
 		Builder.pointLight(l, Palette.WarmInterior, 1.1, 48)
 	end
+	-- Battery exit lamps for blackouts (amber, only on while the grid is down)
+	for _, spec in ipairs({ { 0, 60 }, { 0, -20 }, { 80, 20 }, { -80, 20 } }) do
+		local x, z = W(spec[1], spec[2])
+		Builder.emergencyLight(museum, x, H - 3, z)
+	end
 	do
 		local x, z = W(0, 80)
 		local desk = Builder.box(museum, x, 1, z, 20, 3.5, 4, { name = "Reception", material = Enum.Material.Wood, color = Palette.WarmWood })

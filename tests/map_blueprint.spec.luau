@@ -41,6 +41,22 @@ return function(t)
 		end
 	end)
 
+	t.test("the substation sits inside the crane yard, clear of roads and the canal", function()
+		local S = B.Substation
+		local yard
+		for _, b in ipairs(B.Buildings) do if b.name == "Crane Yard" then yard = b end end
+		t.truthy(yard)
+		t.truthy(S.x - S.w / 2 >= yard.x - yard.w / 2 and S.x + S.w / 2 <= yard.x + yard.w / 2, "substation wider than the yard")
+		t.truthy(S.z + S.d / 2 <= yard.z + yard.d / 2, "substation past the yard")
+		local function overlaps(a, b) return a.x1 < b.x2 and a.x2 > b.x1 and a.z1 < b.z2 and a.z2 > b.z1 end
+		local sr = { x1 = S.x - S.w / 2, x2 = S.x + S.w / 2, z1 = S.z - S.d / 2, z2 = S.z + S.d / 2 }
+		for _, r in ipairs(B.Roads) do
+			local rr = { x1 = math.min(r.from.x, r.to.x) - r.width / 2, x2 = math.max(r.from.x, r.to.x) + r.width / 2, z1 = math.min(r.from.z, r.to.z) - r.width / 2, z2 = math.max(r.from.z, r.to.z) + r.width / 2 }
+			t.falsy(overlaps(sr, rr), "substation overlaps " .. r.name)
+		end
+		t.falsy(overlaps(sr, { x1 = B.Canal.x - B.Canal.width / 2, x2 = B.Canal.x + B.Canal.width / 2, z1 = B.Canal.fromZ, z2 = B.Canal.toZ }), "substation in the canal")
+	end)
+
 	t.test("six hideouts, unique ids, spaced apart", function()
 		t.eq(#B.Hideouts, 6)
 		local ids = {}
