@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -212,6 +213,12 @@ local function build()
 	hint.AutomaticSize = Enum.AutomaticSize.Y
 	refs.hints = Make.label(hint, "Text", "Shift sprint · C sneak · G drop bag · L log", Theme.Small, Theme.Muted)
 	refs.hintPanel = hint
+	-- Touch: the thumbstick owns the bottom-left and the action buttons the bottom-right
+	if UserInputService.TouchEnabled then
+		veh.Position = UDim2.new(0, 16, 0.5, 80)
+		hint.Position = UDim2.new(1, -246, 1, -340)
+		carry.Position = UDim2.new(0.5, -150, 1, -200)
+	end
 end
 
 -- Updates ----------------------------------------------------------------------------------

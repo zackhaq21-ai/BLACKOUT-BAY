@@ -104,7 +104,7 @@ local function applyGrid(down: boolean, seconds: number)
 	local S = BlackoutService.ctx.services
 	setGridLights(not down)
 	S.Security.setGridPower(not down, seconds)
-	S.Security.setGuardVisionScale(BlackoutRules.visionScale(BC, "guard", down))
+	S.Security.setVisionFactor("blackout", BlackoutRules.visionScale(BC, "guard", down))
 	S.Police.setGridDown(down, BlackoutRules.visionScale(BC, "cop", down))
 	S.Raid.setGridDown(down)
 	setPrompts()

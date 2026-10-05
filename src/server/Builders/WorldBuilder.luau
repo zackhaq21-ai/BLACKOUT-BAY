@@ -5,6 +5,7 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Palette = require(ReplicatedStorage.Shared.Palette)
 local Blueprint = require(ReplicatedStorage.Shared.MapBlueprint)
+local WeatherRules = require(ReplicatedStorage.Shared.Core.WeatherRules)
 local Builder = require(script.Parent.Builder)
 local IslandBuilder = require(script.Parent.IslandBuilder)
 local MuseumBuilder = require(script.Parent.MuseumBuilder)
@@ -13,14 +14,15 @@ local HideoutBuilder = require(script.Parent.HideoutBuilder)
 local WorldBuilder = {}
 
 local function applyLighting()
+	local clear = WeatherRules.look("Clear")
 	if not Lighting:FindFirstChildOfClass("Atmosphere") then
 		local atm = Instance.new("Atmosphere")
-		atm.Density = 0.32
+		atm.Density = clear.atmosphereDensity
 		atm.Offset = 0.2
 		atm.Color = Color3.fromRGB(190, 205, 220)
 		atm.Decay = Color3.fromRGB(80, 100, 130)
 		atm.Glare = 0.2
-		atm.Haze = 1.4
+		atm.Haze = clear.atmosphereHaze
 		atm.Parent = Lighting
 	end
 	if not Lighting:FindFirstChild("GlasshouseBloom") then
@@ -39,13 +41,14 @@ local function applyLighting()
 		cc.TintColor = Color3.fromRGB(245, 240, 255)
 		cc.Parent = Lighting
 	end
+	-- Baseline look = the Clear weather look (clients blend from here; WeatherRules is the single source)
 	Lighting.ClockTime = 19.6
-	Lighting.Brightness = 2
-	Lighting.OutdoorAmbient = Color3.fromRGB(78, 86, 108)
-	Lighting.Ambient = Color3.fromRGB(56, 60, 76)
-	Lighting.FogColor = Color3.fromRGB(92, 115, 140)
-	Lighting.FogStart = 400
-	Lighting.FogEnd = 1700
+	Lighting.Brightness = clear.brightness
+	Lighting.OutdoorAmbient = Color3.fromRGB(clear.outdoorAmbient[1], clear.outdoorAmbient[2], clear.outdoorAmbient[3])
+	Lighting.Ambient = Color3.fromRGB(clear.ambient[1], clear.ambient[2], clear.ambient[3])
+	Lighting.FogColor = Color3.fromRGB(clear.fogColor[1], clear.fogColor[2], clear.fogColor[3])
+	Lighting.FogStart = clear.fogStart
+	Lighting.FogEnd = clear.fogEnd
 end
 
 function WorldBuilder.build()

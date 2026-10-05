@@ -32,6 +32,7 @@ Legend per row: AUTOMATED (what already passed here) · 1P / 3P / 5P (Studio Cli
 | UI scaling and micro-interactions: HUD fits 375 px wide, banner above the carry panel, press feedback, toasts, pulses; graphics tier cycles in Looks | m10 | code-reviewed | PENDING (phone) | n/a | n/a | n/a | PENDING | n/a | nothing overlaps the touch controls |
 | Mobile: RUN/SNEAK/DROP/LOG buttons, prompts tappable, Auto tier Medium | all | bindings exist | PENDING (device) | n/a | n/a | n/a | PENDING | PENDING | every hold completes on touch |
 | Controller: L3/B/Y/X bindings, board buttons selectable with selection feedback, prompts with X | all | bindings exist | PENDING (gamepad) | n/a | n/a | n/a | PENDING | n/a | whole heist completable without a mouse |
+| NPC hearing: sprinting inside the museum within 22 studs of a guard raises suspicion; sneaking past does not | m10 | code-reviewed | PENDING | PENDING | n/a | n/a | n/a | n/a | threat eye rises while running, not while sneaking |
 | Performance: desktop 60 / mid mobile 30 at Medium; part count, live lights, NPC and vehicle ticks measured | all | not measured | PENDING | PENDING | PENDING | n/a | n/a | PENDING | MicroProfiler frame times recorded per tier |
 | Touch and controller: all prompts, holds, board, keypad | all | bindings exist | PENDING (device) | n/a | n/a | n/a | PENDING | n/a | every hold completes on touch |
 | Performance tiers (desktop 60, mid mobile 30) | all | not measured | PENDING | PENDING | PENDING | n/a | n/a | PENDING | MicroProfiler frame times recorded |

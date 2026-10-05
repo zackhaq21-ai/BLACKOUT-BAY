@@ -553,10 +553,6 @@ function SecurityService.setVisionFactor(source: string, scale: number)
 	guardVisionScale = math.clamp(product, 0.25, 1)
 end
 
-function SecurityService.setGuardVisionScale(scale: number)
-	SecurityService.setVisionFactor("blackout", scale)
-end
-
 function SecurityService.guardVisionScale(): number
 	return guardVisionScale
 end
@@ -767,6 +763,14 @@ function SecurityService.start()
 					g:tick(dt, t, SecurityService.vision)
 				end
 				tickCameras(dt, t)
+				-- Running inside the museum is audible: a sprinting player's footsteps count as partial exposure
+				-- to guards within earshot. Sneaking and walking make no noise (that is what sneak is for).
+				for _, p in ipairs(Players:GetPlayers()) do
+					local root = playerRoot(p)
+					if root and p:GetAttribute("Sprinting") == true and insideMuseum(root.Position) and root.AssemblyLinearVelocity.Magnitude > 12 then
+						SecurityService.noiseAt(root.Position, Config.Museum.FootstepHearingRadius, p, "running footsteps", Config.Museum.FootstepNoisePerSecond, dt)
+					end
+				end
 			end
 		end
 	end)

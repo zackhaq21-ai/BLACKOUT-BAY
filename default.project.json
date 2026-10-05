@@ -4,11 +4,15 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "Shared": { "$path": "src/shared" }
+      "Shared": {
+        "$path": "src/shared"
+      }
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Server": { "$path": "src/server" }
+      "Server": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
@@ -18,34 +22,36 @@
       },
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "Client": { "$path": "src/client" }
+        "Client": {
+          "$path": "src/client"
+        }
       }
     },
     "Workspace": {
       "$className": "Workspace",
-      "$properties": { "FilteringEnabled": true }
+      "$properties": {
+        "FilteringEnabled": true
+      }
     },
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
         "ClockTime": 19.6,
-        "Brightness": 2,
         "GlobalShadows": true,
         "EnvironmentDiffuseScale": 0.6,
         "EnvironmentSpecularScale": 0.6,
-        "OutdoorAmbient": [0.30, 0.34, 0.42],
-        "Ambient": [0.22, 0.24, 0.30],
-        "FogEnd": 1600,
-        "FogStart": 400,
-        "FogColor": [0.36, 0.45, 0.55],
         "ShadowSoftness": 0.3,
         "Technology": "ShadowMap"
       }
     },
     "SoundService": {
       "$className": "SoundService",
-      "$properties": { "RespectFilteringEnabled": true }
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
     },
-    "HttpService": { "$className": "HttpService" }
+    "HttpService": {
+      "$className": "HttpService"
+    }
   }
 }

@@ -10,7 +10,9 @@ local Palette = require(ReplicatedStorage.Shared.Palette)
 local CopBrain = {}
 CopBrain.__index = CopBrain
 
+local VehicleFeel = require(ReplicatedStorage.Shared.Core.VehicleFeel)
 local WHEEL_RADIUS = Config.Vehicles.WheelRadius
+local PV = Config.Presentation.Vehicle
 
 function CopBrain.new(ctx, rec, index: number, graph)
 	local self = setmetatable({}, CopBrain)
@@ -88,8 +90,10 @@ function CopBrain:drive(target: Vector3, speedFactor: number, now: number)
 	if reversing then
 		steer = -steer
 	end
+	local forwardVel = chassis.AssemblyLinearVelocity:Dot(chassis.CFrame.LookVector)
 	for _, s in ipairs(self.rec.servos) do
-		s.TargetAngle = steer * 35
+		s.TargetAngle = steer * 35 * VehicleFeel.steerLock(PV, tune, forwardVel)
+		s.AngularSpeed = VehicleFeel.steerSpeed(PV, tune, forwardVel)
 	end
 	local mass = chassis.AssemblyMass
 	local torque = mass * tune.accel * WHEEL_RADIUS
