@@ -11,7 +11,7 @@ Recover the exact review sequence with `tools/verify-stack.sh` (prints this tabl
 | 4 | `claude/review-m9-convoys` | `2f0ab3b` | row 3 | armored convoy event | 0 / 0 / 74 tests / builds |
 | 5 | `claude/review-m10-polish` | `c99420b` | row 4 | premium polish pass (feel, camera, vehicles, environment, VFX, audio, UI) | 0 / 0 / 90 tests / builds |
 | 6 | `claude/review-m11-studio-qa` | `8ea2970` | row 5 | Studio QA pack only: sectioned master scenario, perf capture, torture test, config-derived texts, QA docs | 0 / 0 / 90 tests / builds |
-| 8 | `claude/review-m13-progression` | see `git rev-parse --short claude/review-m13-progression` | row 7 | Standing ranks and option unlocks on the existing XP channel, first-session onboarding, telemetry hooks, scenario sections | 0 / 0 / 99 tests / builds |
+| 8 | `claude/review-m13-progression` | `ebe7abb` (moves with each batch) | row 7 | Standing ranks and option unlocks on the existing XP channel, first-session onboarding, telemetry hooks, scenario sections | 0 / 0 / 99 tests / builds |
 | 7 | `claude/review-m12-studio-fixes` | `200ade4` (moves with each evidence-driven commit) | row 6 | evidence-driven fixes and tuning from real Studio runs (harness arrival confirmation first) | 0 / 0 / 90 tests / builds |
 
 The freeze was partially lifted on 2026-10-05 for evidence-driven work (row 7 onward): every change there cites a Studio observation, a real bug, an incomplete journey step or a measurement. Gameplay and polish development without evidence stays frozen at row 5. Row 6 contains no new gameplay or presentation systems; it changes test code, tooling, docs and five UI/prompt strings that now read their numbers from `Config`.
