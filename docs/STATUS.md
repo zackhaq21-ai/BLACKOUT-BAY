@@ -2,26 +2,26 @@
 
 Keep this short. Current task, decisions, changed files, verification, blockers, next step.
 
-## Current state: review branch `claude/review-m10-polish` (stacked on m9 ← m8 ← m7 ← m6 ← dev; none merged)
-Premium polish pass, batch 1: feel, camera, vehicles, environment, VFX, audio architecture, UI motion. No new gameplay.
+## Current state: FROZEN review stack, QA pack on `claude/review-m11-studio-qa`
+Development is frozen at `claude/review-m10-polish` `c99420b`. Stack and recovery: `docs/REVIEW_STACK.md` (`tools/verify-stack.sh`). Nothing merged.
 
-### Done on this branch
-- Pure, tested feel maths: `CameraFeel` (FOV by state, landing dip, stable smoothing), `VehicleFeel` (drive modes, torque curve, steering lock and hand speed by speed and class, brake lights), `WeatherRules` (bounded state machine, looks, readable blends, blackout modifier, lightning gaps). All constants in `Config.Presentation`; wheel radius consolidated into `Config.Vehicles.WheelRadius`.
-- Client: `CameraController`, `MovementController`, `EnvironmentController` (weather, blackout moonlight now client-side, lightning, rain, wet roads, Low/Medium/High/Max tiers with a Looks-tab control), `Fx/Vfx` pool, rewritten `AudioController` (nine SoundGroups, positional cues, beds, interior mix, visual twins), `VehicleController` on `VehicleFeel` with engine bed hooks; UI motion (press feedback, toast slide, money/stash pulse, banner fade).
-- Server: `EnvironmentService` (authoritative weather, replicated, NPC vision factor), `Security`/`Police` vision factors composed from blackout and weather, `Comms.cueAt` positional cues (smash, breaker, pier door, laser trip, substation, convoy breach), vehicle headlight/brake-light states for everyone, `BlackoutService` no longer tweens Lighting (client owns the look), convoy drivers share the steering maths.
-- Materials: Limestone for civic stone, CorrodedMetal for harbour steel. Art direction, Studio debt and test docs updated.
-- Batch 2 (NPC, reactivity, mobile, consistency): guards hear a sprinting player inside the museum (sneak and walk stay silent) through the existing noise path; cruisers steer with the shared `VehicleFeel` maths; the baseline look comes from `WeatherRules.look("Clear")` with `default.project.json` trimmed to static Lighting properties (one source instead of three); touch layout keeps the vehicle, hint and carry panels off the thumbstick and action buttons; thin `setGuardVisionScale` wrapper removed; `config_consistency.spec` guards cross-table invariants. StreamingEnabled deliberately left off (runtime-built world, teleport-driven engine scenario); documented as a Studio decision.
+### Done on `claude/review-m11-studio-qa` (QA pack, no new gameplay or presentation systems)
+- `tests/engine/driver.server.luau` restructured into independent sections per system (crew, heist, vehicles, blackout, weather, decoys, police, convoy, raids, bounties, cross-system torture, performance tiers, disconnect). One `GLASSHOUSE_ENGINE_FAIL system= test= expected= actual=` line per failure, dependents SKIP instead of cascading, `GLASSHOUSE_ENGINE_SUMMARY` at the end. Existing success markers kept; new: WEATHER, TORTURE, TIERS, PERF lines.
+- Performance capture: server `Stats` and per-client frame timing / memory / sound / emitter counts per phase (normal per tier, blackout, rain, storm, convoy, convoy+blackout, after-torture). Not run; `PERFORMANCE = UNVERIFIED`.
+- Runner and `tools/verify-engine.ps1` continue past a failing player count and list every failed section; default counts 1,3,5.
+- `tools/verify-stack.sh` verifies remote parity and fast-forward order of the whole stack.
+- Config consistency: five UI/prompt strings now format their numbers from `Config` (bounty hold/range/cooldown on the Wanted tab, drill and lockdown seconds in objectives, dock-door and dual-swipe seconds, garage seat/bag counts). `Config.Museum.DockOpenSeconds` added for a previously literal 25.
+- Docs: `STUDIO_QA_MASTER.md` (workflow, section map, markers, visual PASS/TUNE/FAIL checklist, perf table, torture plan), `ECONOMY_AUDIT.md`, `ASSET_INVENTORY.md`, `REVIEW_STACK.md`.
 
 ### Verification
-`tools/check.sh`: type check 0 errors, lint 0 warnings, 90/90 logic tests, both places build. Nothing Studio-verified; feel, handling, lighting and weather are visual debt in `docs/STUDIO_VERIFICATION_PENDING.md`.
+`tools/check.sh`: 0 type errors, 0 lint warnings, 90/90 logic tests; both places build; `tools/verify-stack.sh` passes. Studio: not run.
 
-### Earlier decisions still in force
-Full stash exposure on raids; banking enabled; 7-stud takedowns; m8 at `9e259d6`, m9 at `2f0ab3b`; keep m6–m10 pushed, separate, unmerged, in dependency order; no new major gameplay until the polish pass is complete.
+### Decisions in force
+Full stash exposure; banking enabled; 7-stud takedowns; m8 `9e259d6`, m9 `2f0ab3b`, m10 `c99420b` frozen; no merges; no new systems; tuning (wet-road traction, custom animations, StreamingEnabled, lighting budgets, vehicle numbers, camera feel, weather intensity, particle rates) waits for observed Studio results.
 
 ### Not implemented (from the full vision)
 Player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; weapons/combat beyond takedowns; live purchases; sound assets; custom art; performance profiling.
 
 ### Next task
-1. On the prepared PC: `tools\verify-engine.ps1 -Players 1,3,5`; fix what it reports; play by hand per `docs/LAUNCH.md`.
-2. Merge m6 → m7 → m8 → m9 if accepted (fast-forward in that order).
-3. Owner visual review in Studio of the polish branch (one consolidated session per `docs/STUDIO_VERIFICATION_PENDING.md`), then tuning from observed feel. Remaining polish candidates needing Studio first: wet-road traction, custom animation set, StreamingEnabled trial, light budget by tier.
+1. On a machine with Roblox Studio: check out `claude/review-m11-studio-qa`, run `tools\verify-engine.ps1 -Players 1,3,5`, then the human checklist in `docs/STUDIO_QA_MASTER.md`; record decisions and PERF lines there.
+2. Tune only from that evidence; then merge the stack fast-forward in order (`docs/REVIEW_STACK.md`).

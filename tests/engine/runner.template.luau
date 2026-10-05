@@ -7,10 +7,16 @@ if not game:GetService("RunService"):IsEdit() then
 	end
 end
 local testService = game:GetService("StudioTestService")
+local failures = {}
 for _, count in ipairs({ --[[COUNTS]] 1 }) do
 	print("GLASSHOUSE_ENGINE_BEGIN", count)
 	local result = if count == 1 then testService:ExecutePlayModeAsync({ glasshouse = true, count = count }) else testService:ExecuteMultiplayerTestAsync(count, { glasshouse = true, count = count })
 	print("GLASSHOUSE_ENGINE_RESULT", game:GetService("HttpService"):JSONEncode(result))
-	assert(type(result) == "table" and result.ok, "Engine scenario failed for " .. count .. " players")
+	if type(result) ~= "table" or not result.ok then
+		table.insert(failures, count) -- keep going: the other counts are independent evidence
+	end
+end
+if #failures > 0 then
+	error("Engine scenario failed for player counts: " .. table.concat(failures, ", "), 0)
 end
 print("GLASSHOUSE_ENGINE_ALL_PASSED")

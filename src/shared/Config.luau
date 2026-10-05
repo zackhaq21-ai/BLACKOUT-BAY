@@ -60,6 +60,7 @@ Config.Museum = {
 	AlertThreshold = 1.0,
 	LockdownDelaySeconds = 25, -- after Alert, shutters close on the front
 	CalmSeconds = 75, -- no reports for this long -> security stands down one level
+	DockOpenSeconds = 25, -- loading-dock door stays open after a correct code or release
 	PowerCutSeconds = 45, -- junction box disables cameras + lifts shutters
 	PowerCutCooldownSeconds = 150,
 	CameraSwitchSeconds = 90, -- security-office switch disables cameras

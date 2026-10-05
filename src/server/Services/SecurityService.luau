@@ -478,8 +478,8 @@ function SecurityService.onKeypadSubmit(player: Player, targetId: string, code: 
 	if code == dockCode then
 		wrongCodeStreak[player] = nil
 		Comms.cue(player, "Unlock")
-		Comms.toast(player, "Dock door open for 25 s.", "good")
-		openDockTemporarily(25)
+		Comms.toast(player, string.format("Dock door open for %d s.", Config.Museum.DockOpenSeconds), "good")
+		openDockTemporarily(Config.Museum.DockOpenSeconds)
 		Net.event("CloseKeypad"):FireClient(player)
 	else
 		wrongCodeStreak[player] = (wrongCodeStreak[player] or 0) + 1
@@ -499,7 +499,7 @@ function SecurityService.onDockRelease(player: Player)
 		Comms.toast(player, "Sealed: lockdown.", "warn")
 		return
 	end
-	openDockTemporarily(25)
+	openDockTemporarily(Config.Museum.DockOpenSeconds)
 	Comms.cue(player, "Unlock")
 end
 
@@ -599,7 +599,7 @@ function SecurityService.onOfficeCard(player: Player)
 	end
 	player:SetAttribute("KeycardOffice", true)
 	Comms.hud(player, { keycards = keycardList(player) })
-	Comms.toast(player, "Office keycard taken. Vault readers A and B need two swipes within 4 s.", "good")
+	Comms.toast(player, string.format("Office keycard taken. Vault readers A and B need two swipes within %d s.", Config.Museum.DualSwipeWindowSeconds), "good")
 end
 
 function SecurityService.onPickpocket(player: Player, prompt: ProximityPrompt)

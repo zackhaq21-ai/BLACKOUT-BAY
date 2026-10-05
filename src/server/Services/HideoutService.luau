@@ -31,10 +31,10 @@ function HideoutService.init(ctx)
 			end
 		end
 		if parts[1] then
-			Builder.prompt(parts[1], "Roll out Kestrel", "Garage (fast, 2 seats, 2 bags)", 0.8, "SpawnVehicle", { UnitId = u.id, Kind = "Kestrel" })
+			Builder.prompt(parts[1], "Roll out Kestrel", string.format("Garage (fast, %d seats, %d bags)", Config.Vehicles.Kestrel.seats, Config.Vehicles.Kestrel.trunk), 0.8, "SpawnVehicle", { UnitId = u.id, Kind = "Kestrel" })
 		end
 		if parts[2] then
-			Builder.prompt(parts[2], "Roll out Courier Van", "Garage (slow, 4 seats, 5 bags)", 0.8, "SpawnVehicle", { UnitId = u.id, Kind = "Courier" })
+			Builder.prompt(parts[2], "Roll out Courier Van", string.format("Garage (slow, %d seats, %d bags)", Config.Vehicles.Courier.seats, Config.Vehicles.Courier.trunk), 0.8, "SpawnVehicle", { UnitId = u.id, Kind = "Courier" })
 		end
 	end
 end

@@ -54,9 +54,9 @@ local function objectiveFor(job): (string, string)
 	if phase == "Started" then
 		return "Get to the Aurora Exchange", "North of Aurora Plaza. Front (loud), loading dock (code), or the parking-deck roof."
 	elseif phase == "OnSite" then
-		return "Take what you came for", "Cut display cases. The vault needs two keycard swipes or a 30 s drill."
+		return "Take what you came for", string.format("Cut display cases. The vault needs two keycard swipes or a %d s drill.", Config.Museum.DrillSeconds)
 	elseif phase == "LootTaken" then
-		return "Get the haul out", "Any exit. Heavy loot can't climb. Lockdown drops the front shutter 25 s after the alarm."
+		return "Get the haul out", string.format("Any exit. Heavy loot can't climb. Lockdown drops the front shutter %d s after the alarm.", Config.Museum.LockdownDelaySeconds)
 	elseif phase == "Escaping" then
 		return "Deliver to " .. unit, "Drop bags on the delivery table at your hideout. Dropped bags can be taken by anyone."
 	end

@@ -206,6 +206,34 @@ hook.OnInvoke = function(action, a, b, c)
 		return S.Convoy.testCrates()
 	elseif action == "convoyVehicles" then
 		return S.Convoy.testVehicles()
+	elseif action == "weather" then
+		S.Environment.setState(a)
+		return S.Environment.state()
+	elseif action == "perfServer" then
+		local Stats = game:GetService("Stats")
+		local out = { players = #Players:GetPlayers() }
+		for _, name in ipairs({ "InstanceCount", "PrimitivesCount", "MovingPrimitivesCount", "ContactsCount", "PhysicsStepTimeMs", "HeartbeatTimeMs", "DataSendKbps", "DataReceiveKbps" }) do
+			local okProp, v = pcall(function()
+				return (Stats :: any)[name]
+			end)
+			out[name] = if okProp and type(v) == "number" then math.floor(v * 100) / 100 else "n/a"
+		end
+		local okMem, mem = pcall(function()
+			return Stats:GetTotalMemoryUsageMb()
+		end)
+		out.serverMemoryMb = if okMem then math.floor(mem) else "n/a"
+		local emitters, lights = 0, 0
+		for _, d in ipairs(ctx.world.root:GetDescendants()) do
+			if d:IsA("ParticleEmitter") and d.Enabled then
+				emitters += 1
+			elseif d:IsA("Light") and d.Enabled and d.Brightness > 0 then
+				lights += 1
+			end
+		end
+		out.activeEmitters = emitters
+		out.litLights = lights
+		out.worldParts = #ctx.world.root:GetDescendants()
+		return out
 	elseif action == "convoyEnd" then
 		S.Convoy.testEnd()
 		return S.Convoy.isActive() == false

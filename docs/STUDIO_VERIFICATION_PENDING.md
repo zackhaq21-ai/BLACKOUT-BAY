@@ -1,5 +1,7 @@
 # Studio verification debt
 
+**Run everything through one master workflow: `docs/STUDIO_QA_MASTER.md`** (automated sections with `GLASSHOUSE_ENGINE_FAIL system/test/expected/actual` lines, performance capture, the cross-system torture test and the human PASS/TUNE/FAIL checklist). This file remains the per-feature debt table.
+
 Everything here is SOURCE IMPLEMENTED and AUTOMATED CHECKS PASSED (type check, lint, logic tests, place builds) but **not** STUDIO PLAYTESTED or LIVE VERIFIED. No Roblox Studio exists in the build environment. Run `tools\verify-engine.ps1 -Players 1,3,5` on the prepared Windows PC; it writes `build/engine-results.txt`. Then play by hand per `docs/LAUNCH.md`. Tick a row only with observed evidence.
 
 Legend per row: AUTOMATED (what already passed here) · 1P / 3P / 5P (Studio Clients-and-Servers runs) · DATASTORE (live persistence) · VISUAL (looked right) · PERF (measured) · MARKER (printed line or on-screen result that proves success).
