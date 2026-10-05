@@ -256,6 +256,28 @@ Config.WorldEvents = {
 	},
 }
 
+-- Progression: "Standing" is the player-facing name of the durable XP channel (ProfileOps "Run"/"Standing" ops).
+-- Ranks unlock OPTIONS (ways to play), never stats. Awards diminish per source per day so no single loop farms it.
+Config.Progression = {
+	Ranks = { -- ascending; thresholds line up with the earned looks in Config.Commerce
+		{ id = "drifter", name = "Drifter", xp = 0 },
+		{ id = "runner", name = "Runner", xp = 200 },
+		{ id = "operator", name = "Operator", xp = 600 },
+		{ id = "fixer", name = "Fixer's Pick", xp = 1500 },
+		{ id = "legend", name = "Harbour Legend", xp = 4000 },
+	},
+	-- unlock key -> rank id required (keys are checked server-side where the action happens)
+	Unlocks = { fakes = "runner", raids = "runner", bounties = "operator", convoyIntel = "operator" },
+	UnlockLabels = { fakes = "fake bags and decoy runs", raids = "raiding other hideouts", bounties = "placing bounties", convoyIntel = "convoy route intel" },
+	-- base award per source (before crew bonus and diminishing)
+	Awards = { convoyCrate = 40, raid = 80, recovery = 60, bounty = 50, blackoutReset = 30 },
+	CrewBonusPerExtraMember = 0.1, -- +10% per present crewmate beyond the first, capped by crew size
+	-- per source per day: full value for the first N awards, then multiplied by the factor
+	Diminish = { job = { 6, 0.5 }, convoyCrate = { 6, 0.5 }, raid = { 2, 0.5 }, recovery = { 3, 1 }, bounty = { 2, 0.5 }, blackoutReset = { 2, 0.25 } },
+	MaxAwardsSeen = 400, -- awardsSeen entries older than two days are pruned past this
+	Onboarding = { SkipAfterJobs = 1, MoveDistance = 25 },
+}
+
 -- Presentation: feel, camera, weather and graphics tiers. Client-side only; never gameplay authority.
 Config.Presentation = {
 	Camera = {

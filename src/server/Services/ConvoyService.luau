@@ -231,6 +231,7 @@ local function completeBreach(player: Player)
 		S.EventLog.crew(crew.id, string.format("%s breached the convoy near %s: %d crates", Comms.name(player), landmarkOf(doors.Position), #ids), "good")
 	end
 	ev.phase = "Breached"
+	S.Telemetry.track("convoy_breach", { crates = #ids, blackout = S.Blackout.isGridDown() })
 	escalate("breached", player)
 	setCargoLight(Palette.SecurityRed)
 	Comms.cueAt("ConvoyBreach", doors.Position, 3000)
@@ -661,6 +662,11 @@ local function onLootEvent(kind: string, data)
 	elseif kind == "deliver" then
 		c.live = false
 		local S = ConvoyService.ctx.services
+		if data.player then
+			local crew = S.Crew.crewOf(data.player)
+			S.Progression.award(data.player, "convoyCrate", data.item.id, crew and #crew.members or 1)
+		end
+		S.Telemetry.track("convoy_crate_fenced", { value = data.value or 0 })
 		if data.crewId then
 			S.EventLog.crew(data.crewId, string.format("%s fenced a convoy crate: +%d", Comms.name(data.player), data.value or 0), "good")
 		end

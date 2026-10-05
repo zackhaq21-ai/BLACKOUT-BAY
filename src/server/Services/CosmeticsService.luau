@@ -47,6 +47,7 @@ function CosmeticsService.push(player: Player)
 		catalog = Config.Commerce.Catalog,
 		commerce = CosmeticsService.ctx.services.Commerce.enabled(),
 		saveable = profile.saveable,
+		standing = CosmeticsService.ctx.services.Progression.rankInfo(player),
 	})
 end
 

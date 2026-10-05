@@ -445,6 +445,12 @@ local function finishRaid(raid, reason: string)
 		return HideoutRecord.releaseRaid(r, serverId, raid.raiderKey, report, HC.MaxReports, unix())
 	end)
 	S.EventLog.crew(raid.crewId, string.format("Raid on %s ended (%s): took %d, defences kept %d", raid.targetName, reason, lost, raid.retained), if lost > 0 then "good" else "warn")
+	if lost > 0 then
+		for _, m in ipairs(raid.crew.members) do
+			S.Progression.award(m, if raid.recovery then "recovery" else "raid", raid.id, #raid.crew.members)
+		end
+	end
+	S.Telemetry.track(if raid.recovery then "recovery_end" else "raid_end", { reason = reason, lost = lost, retained = raid.retained, members = #raid.crew.members })
 	if state then
 		local owner = ownerPlayer(state)
 		if owner then

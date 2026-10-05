@@ -206,6 +206,15 @@ hook.OnInvoke = function(action, a, b, c)
 		return S.Convoy.testCrates()
 	elseif action == "convoyVehicles" then
 		return S.Convoy.testVehicles()
+	elseif action == "standing" then
+		return S.Progression.rankInfo(a)
+	elseif action == "onboarding" then
+		return S.Onboarding.state(a)
+	elseif action == "hideoutRequest" then
+		S.Hideout.handleRequest(a, b)
+		return true
+	elseif action == "telemetry" then
+		return S.Telemetry.counts()
 	elseif action == "weather" then
 		S.Environment.setState(a)
 		return S.Environment.state()

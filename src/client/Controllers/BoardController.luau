@@ -386,7 +386,21 @@ local function renderLooks()
 		return
 	end
 	local ps = profileState
-	refs.looksHead.Text = string.format("%d XP · %d escapes · %d jobs%s", ps.xp or 0, ps.wins or 0, ps.jobs or 0, if ps.saveable then "" else " · NOT SAVING this session")
+	local st = ps.standing
+	if st then
+		local nextLine = if st.nextRank then string.format(" · next: %s at %d", st.nextRank, st.nextXp or 0) else " · top rank"
+		local unlockLine = ""
+		if st.nextUnlocks and #st.nextUnlocks > 0 then
+			local labels = {}
+			for _, k in ipairs(st.nextUnlocks) do
+				table.insert(labels, (st.unlockLabels and st.unlockLabels[k]) or k)
+			end
+			unlockLine = " (unlocks " .. table.concat(labels, ", ") .. ")"
+		end
+		refs.looksHead.Text = string.format("Standing %d · %s%s%s · %d escapes · %d jobs%s", st.xp or 0, st.rankName or "", nextLine, unlockLine, ps.wins or 0, ps.jobs or 0, if ps.saveable then "" else " · NOT SAVING this session")
+	else
+		refs.looksHead.Text = string.format("%d Standing · %d escapes · %d jobs%s", ps.xp or 0, ps.wins or 0, ps.jobs or 0, if ps.saveable then "" else " · NOT SAVING this session")
+	end
 	for _, ch in ipairs(refs.looks:GetChildren()) do
 		if ch:IsA("Frame") then
 			ch:Destroy()

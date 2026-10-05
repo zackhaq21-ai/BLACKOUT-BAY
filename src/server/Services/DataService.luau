@@ -9,11 +9,14 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local ProfileOps = require(ReplicatedStorage.Shared.Core.ProfileOps)
+local Standing = require(ReplicatedStorage.Shared.Core.Standing)
+local Onboarding = require(ReplicatedStorage.Shared.Core.Onboarding)
+ProfileOps.configure(Standing, Onboarding, Config.Progression)
 
 local DataService = { ctx = nil :: any }
 
 local STORE_NAME = "GlasshouseProfiles"
-local PROFILE_VERSION = 1
+local PROFILE_VERSION = 2 -- v2: awardsSeen, standingDay, onboarding (all optional; v1 data migrates with defaults)
 local LOCK_TIMEOUT = 150 -- seconds; a stale lock older than this is considered dead
 local AUTOSAVE_INTERVAL = 120
 local LOAD_RETRIES = 3
@@ -45,6 +48,9 @@ local function defaults()
 		runsSeen = {},
 		equipped = "mint",
 		decor = "",
+		awardsSeen = {}, -- Standing award ids credited (pruned past Config.Progression.MaxAwardsSeen)
+		standingDay = { day = "", counts = {} }, -- per-source daily counters for diminishing
+		onboarding = { step = 1, done = false },
 		version = PROFILE_VERSION,
 	}
 end
@@ -94,6 +100,23 @@ local function migrate(data)
 			d[k] = data[k]
 		end
 	end
+	-- v2 progression fields: validate every entry; anything malformed falls back to the default
+	if type(data.awardsSeen) == "table" then
+		for key, value in pairs(data.awardsSeen) do
+			if type(key) == "string" and #key <= 120 and type(value) == "string" and #value <= 12 then
+				d.awardsSeen[key] = value
+			end
+		end
+	end
+	if type(data.standingDay) == "table" and type(data.standingDay.day) == "string" and #data.standingDay.day <= 12 and type(data.standingDay.counts) == "table" then
+		d.standingDay.day = data.standingDay.day
+		for key, value in pairs(data.standingDay.counts) do
+			if type(key) == "string" and #key <= 32 and type(value) == "number" and value == value and value >= 0 and value < 1e6 then
+				d.standingDay.counts[key] = math.floor(value)
+			end
+		end
+	end
+	d.onboarding = Onboarding.fromStored(data.onboarding)
 	return d
 end
 

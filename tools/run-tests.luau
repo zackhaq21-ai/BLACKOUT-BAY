@@ -15,6 +15,8 @@ local SPECS = {
 	"../tests/camera_feel.spec",
 	"../tests/vehicle_feel.spec",
 	"../tests/config_consistency.spec",
+	"../tests/standing.spec",
+	"../tests/onboarding.spec",
 	"../tests/heat.spec",
 	"../tests/map_blueprint.spec",
 	"../tests/road_graph.spec",

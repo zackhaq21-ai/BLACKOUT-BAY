@@ -270,6 +270,7 @@ function HideoutService.handleRequest(player: Player, req)
 	local action = req.action
 	if action == "refresh" then
 		HideoutService.pushState(player)
+		S.Onboarding.advance(player, "boardOpened")
 	elseif action == "markRead" then
 		Store.apply(player.UserId, function(r)
 			return HideoutRecord.markRead(r), nil
@@ -317,14 +318,23 @@ function HideoutService.handleRequest(player: Player, req)
 	elseif action == "listTargets" then
 		task.spawn(listTargets, player)
 	elseif action == "startRaid" then
+		if S.Progression.requires(player, "raids") then
+			return
+		end
 		S.Raid.startRaid(player, req.userId)
 	elseif action == "recover" then
 		S.Raid.startRecovery(player, req.raidId)
 	elseif action == "placeBounty" then
+		if S.Progression.requires(player, "bounties") then
+			return
+		end
 		S.Bounty.place(player, req.userId, tonumber(req.amount) or 0)
 	elseif action == "listWanted" then
 		S.Bounty.listWanted(player)
 	elseif action == "fake" then
+		if S.Progression.requires(player, "fakes") then
+			return
+		end
 		local crew = S.Crew.crewOf(player)
 		local unit = crew and crew.unit
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")

@@ -1,0 +1,32 @@
+local O = require("../src/shared/Core/Onboarding")
+
+return function(t)
+	t.test("advances forward only, from observed events, to done", function()
+		local s = O.new()
+		t.eq(O.stepName(s), "move")
+		local c
+		s, c = O.advance(s, "moved"); t.truthy(c); t.eq(O.stepName(s), "board")
+		s, c = O.advance(s, "moved"); t.falsy(c)
+		s, c = O.advance(s, "jobStarted"); t.truthy(c); t.eq(O.stepName(s), "loot", "skipping a step forward is fine")
+		s, c = O.advance(s, "boardOpened"); t.falsy(c, "never backward")
+		s, c = O.advance(s, "delivered"); t.truthy(c); t.truthy(s.done)
+		s, c = O.advance(s, "lootPicked"); t.falsy(c, "done is terminal")
+		t.falsy((O.advance(O.new(), "nonsense")) ~= nil and select(2, O.advance(O.new(), "nonsense")))
+	end)
+	t.test("stored data is validated; malformed resets to fresh and never blocks", function()
+		t.eq(O.fromStored(nil).step, 1)
+		t.eq(O.fromStored({ step = "x" }).step, 1)
+		t.eq(O.fromStored({ step = 99 }).step, 1)
+		t.eq(O.fromStored({ step = 0 / 0 }).step, 1)
+		t.eq(O.fromStored({ step = 3.7 }).step, 3)
+		t.truthy(O.fromStored({ step = 6 }).done)
+		t.truthy(O.fromStored({ step = 2, done = true }).done)
+		t.truthy(O.complete(O.new()).done)
+	end)
+	t.test("every step has a short hint", function()
+		for i = 1, #O.Steps do
+			local title, detail = O.hint({ step = i, done = false })
+			t.truthy(#title > 3 and #title < 60 and #detail > 10 and #detail < 160, O.Steps[i])
+		end
+	end)
+end

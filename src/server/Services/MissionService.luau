@@ -123,6 +123,8 @@ function MissionService.startJob(player: Player, silent: boolean?)
 	end
 	Crew.broadcast(crew)
 	pushHud(job)
+	MissionService.ctx.services.Onboarding.onJobStarted(crew)
+	MissionService.ctx.services.Telemetry.track("job_start", { members = #crew.members, silent = silent == true })
 	return job
 end
 
@@ -169,13 +171,23 @@ local function closeJob(crewId: string, reason: string)
 			xp += C.XpGhostBonus
 		end
 	end
+	local Standing = require(ReplicatedStorage.Shared.Core.Standing)
+	local day = Standing.dayKey(os.time())
+	local S = MissionService.ctx.services
+	local xpGained = {}
 	for _, key in ipairs(present) do
 		local p = playerByKey(key)
 		if p then
-			Data.applyOp(p, { kind = "Run", id = flow.job.id, xp = xp, won = flow.job.deliveredValue > 0 })
-			MissionService.ctx.services.Cosmetics.push(p)
+			local before = S.Progression.xp(p)
+			local rankBefore = Standing.rankFor(Config.Progression, before)
+			Data.applyOp(p, { kind = "Run", id = flow.job.id, xp = xp, won = flow.job.deliveredValue > 0, source = "job", day = day, members = #present })
+			xpGained[key] = S.Progression.xp(p) - before
+			S.Progression.announce(p, xpGained[key], rankBefore)
+			S.Cosmetics.push(p)
+			S.Onboarding.onJobClosed(p, flow.job.deliveredValue)
 		end
 	end
+	S.Telemetry.track("job_close", { reason = reason, value = flow.job.deliveredValue, headline = summary.headline, members = #present, raid = job.raid ~= nil })
 	EventLog.crew(crewId, string.format("Job closed (%s): %d delivered", reason, flow.job.deliveredValue), if flow.job.deliveredValue > 0 then "good" else "warn")
 	-- Results: what happened, what you kept, what you lost, what next
 	local lines = {}
@@ -192,6 +204,7 @@ local function closeJob(crewId: string, reason: string)
 		lines = lines,
 		durationSeconds = (flow.job.closedAt or now()) - flow.job.startedAt,
 		xp = xp,
+		standing = xpGained,
 		next = if job.raid then "Payouts went to your hideout stash. Bank some from the board's Hideout tab if you want it safe." else "Walk to the job board to run it again. Payouts sit in your stash: bank or spend on defences from the Hideout tab.",
 	}
 	for _, p in ipairs(job.crew.members) do
@@ -423,7 +436,8 @@ function MissionService.handleRequest(player: Player, req)
 		if job then
 			pushHud(job)
 		else
-			Net.event("MissionState"):FireClient(player, { jobActive = false, phase = "Idle", objective = "Open the job board at your pier", objectiveDetail = "Run solo now, or share your crew code and run it together." })
+			local title, detail = MissionService.ctx.services.Onboarding.idleObjective(player)
+			Net.event("MissionState"):FireClient(player, { jobActive = false, phase = "Idle", objective = title, objectiveDetail = detail })
 		end
 	end
 end

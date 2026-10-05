@@ -42,6 +42,32 @@ return function(t)
 		t.truthy(Config.Vehicles.Kestrel.mass < Config.Presentation.Vehicle.HeavyMass)
 		t.truthy(Config.Vehicles.WheelRadius > 0)
 	end)
+	t.test("progression: ranks ascend, unlocks and labels agree, diminishing covers every source, looks align", function()
+		local P = Config.Progression
+		local ids = {}
+		for i, r in ipairs(P.Ranks) do
+			t.truthy(type(r.id) == "string" and type(r.name) == "string" and type(r.xp) == "number", "rank " .. i)
+			if i > 1 then t.truthy(r.xp > P.Ranks[i - 1].xp, "rank xp ascending") end
+			ids[r.id] = r.xp
+		end
+		t.eq(P.Ranks[1].xp, 0, "first rank is free")
+		for key, rank in pairs(P.Unlocks) do
+			t.truthy(ids[rank] ~= nil, key .. " -> unknown rank " .. tostring(rank))
+			t.truthy(type(P.UnlockLabels[key]) == "string", "label for " .. key)
+		end
+		for source in pairs(P.Awards) do t.truthy(P.Diminish[source] ~= nil, "diminish rule for " .. source) end
+		t.truthy(P.Diminish.job ~= nil, "jobs diminish too")
+		for source, rule in pairs(P.Diminish) do t.truthy(#rule == 2 and rule[1] >= 0 and rule[2] >= 0 and rule[2] <= 1, source) end
+		-- earned looks line up with rank thresholds so a rank-up and a new look arrive together
+		for _, item in ipairs(Config.Commerce.Catalog) do
+			if type(item.EarnedXP) == "number" and item.EarnedXP > 0 then
+				local matches = false
+				for _, r in ipairs(P.Ranks) do if r.xp == item.EarnedXP then matches = true end end
+				t.truthy(matches, item.Id .. " earned xp matches a rank threshold")
+			end
+		end
+	end)
+
 	t.test("world-event constants stay inside their rule bounds", function()
 		local B, C = Config.WorldEvents.Blackout, Config.WorldEvents.Convoy
 		t.truthy(B.DurationSeconds <= B.CooldownSeconds and B.SabotageSeconds < B.DurationSeconds and B.ResetSeconds < B.DurationSeconds)

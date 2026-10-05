@@ -201,6 +201,7 @@ local function complete(player: Player, kind: string)
 			Comms.toast(player, "Can't cut the grid: " .. tostring(err) .. ".", "warn")
 		else
 			S.Police.addHeat(player, BC.SaboteurHeat, "cut the harbour grid")
+			S.Telemetry.track("blackout_cut", { crew = crew and #crew.members or 0 })
 			if crew then
 				S.EventLog.crew(crew.id, string.format("%s cut the harbour grid (%d s)", Comms.name(player), BC.DurationSeconds), "warn")
 			end
@@ -216,6 +217,8 @@ local function complete(player: Player, kind: string)
 				S.EventLog.crew(crew.id, Comms.name(player) .. " reset the harbour grid", "good")
 			end
 			Comms.toastAll(Comms.name(player) .. " reset the harbour grid. Lights back on.", "warn")
+			S.Progression.award(player, "blackoutReset", tostring(math.floor(ended.startedAt)), 1)
+			S.Telemetry.track("blackout_reset", { after = math.floor(workspace:GetServerTimeNow() - ended.startedAt) })
 		end
 	end
 	completing[player] = nil
