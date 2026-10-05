@@ -280,6 +280,36 @@ local ok, result = xpcall(function()
 		raidResult.recovered = victimReport.recovered
 		print("GLASSHOUSE_ENGINE_RECOVERY_SUCCESS", args.count, "recovered", victimReport.recovered)
 
+		-- 7c. Bounties (3+ players): the raider funds a bounty on the leader; a third player leaves the crew and
+		-- collects it with an on-foot takedown; the raider (contributor) could not; a second claim is refused.
+		if args.count >= 3 then
+			step("bounty")
+			local hunter = list[3]
+			hook:Invoke("leave", hunter)
+			assert(hook:Invoke("grantStash", raider, 1000), "Test grant failed")
+			local hunterBefore = hook:Invoke("stash", hunter).stash
+			local total = hook:Invoke("placeBounty", raider, leader.UserId, 400)
+			assert(total == 400, "Bounty not placed: " .. tostring(total))
+			waitFor(function()
+				return (leader:GetAttribute("Bounty") or 0) == 400 and leader.Character and leader.Character.HumanoidRootPart:FindFirstChild("TakedownPrompt") ~= nil
+			end, 6, "Takedown prompt missing on the target")
+			move(leader, unit.spawn.Position + Vector3.new(4, 0, 0))
+			-- contributor cannot claim
+			move(raider, unit.spawn.Position + Vector3.new(4, 0, 3))
+			hook:Invoke("trigger", raider, leader.Character.HumanoidRootPart, "Takedown")
+			assert(hook:Invoke("bounty", leader) == 400, "Contributor managed to claim")
+			move(hunter, unit.spawn.Position + Vector3.new(4, 0, -3))
+			trigger(hunter, leader.Character.HumanoidRootPart, "Takedown")
+			waitFor(function()
+				return hook:Invoke("bounty", leader) == 0
+			end, 5, "Bounty not cleared by the takedown")
+			waitFor(function()
+				return hook:Invoke("stash", hunter).stash == hunterBefore + 400
+			end, 8, "Hunter not paid exactly the bounty")
+			assert(not hook:Invoke("trigger", hunter, leader.Character.HumanoidRootPart, "Takedown") or hook:Invoke("stash", hunter).stash == hunterBefore + 400, "Second claim paid again")
+			print("GLASSHOUSE_ENGINE_BOUNTY_SUCCESS", args.count)
+		end
+
 		-- 8. Disconnect: a carrier who leaves drops the bag where they stood
 		step("disconnect")
 		local ids = hook:Invoke("lootItems")

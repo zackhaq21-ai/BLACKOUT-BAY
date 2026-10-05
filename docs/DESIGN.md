@@ -78,6 +78,13 @@ Raiders leave clues; the victim gets a time-limited chance to get the **same** l
 - **Decoy vehicles** need no new mechanic: roll out a second car, put a fake in its trunk, and send it the exposed way. Cruisers chase recognised vehicles and wanted drivers, so a wanted decoy driver pulls pursuit; real loot is split between trunks (bundles and bags keep their individual ids as they move between containers).
 - **Assumptions.** Cost, cap and mimic list are configurable in `Config.Decoys`; a fake "Stash of" bundle carries the crafter's name, not a victim's, so it cannot forge a recovery clue (clues only follow `raid:` origins).
 
+## Bounties (implemented)
+- **Funding.** A player puts earned stash on anyone outside their crew (100 to 1,000,000). The contributor's stash is debited first; the bounty is then credited on the **target's hideout record**, so it persists across servers and while the target is offline, and contributions from several players stack (2m + 2m = 4m). If the credit fails the contributor is refunded. Never real money.
+- **Who is wanted.** Nameplates show "BOUNTY n", the Wanted tab lists everyone on the server with their bounty, the target is told the amount, and a server-wide notice names them.
+- **Claiming.** A hunter holds "Take down" on the target for 2 seconds within 7 studs while the target is **on foot** (vehicles are safe; crews are cover). The claim is one atomic transform on the target's record: the second of two simultaneous hunters gets "no bounty". The target is down for 4 seconds and drops their bag; the hunter's stash receives the full pool once. Refused: the target themself, any contributor, crewmates of the target, and any claim within 5 minutes of the last payout on that target (farming). Disconnects change nothing: the bounty stays on the record.
+- **Reputation.** A raid report offers "Put 500 on <raider>" so victims can turn a loss into pursuit. NPC police arrests do not pay bounties and do not clear them.
+- **Assumptions.** Amount bounds, hold time, range, stun and cooldown live in `Config.Bounty`; collusion handling is the rule set above (no related-account review yet).
+
 ## Corrections carried over from the prototype thread (docs/ROADMAP.md in `prototype/aurora-v0`)
 - The rare car is owned by the **individual thief**, never automatically by the assisting crew; ownership survives crew changes for the rest of the weekly cycle. `RareCarCycle` already models the individual owner.
 - A crew member may **leak a hideout**, enabling stash raids and a comeback. (The raid board currently lists hideouts by visible wealth; leaking as a deliberate act is a later milestone.)
@@ -85,7 +92,7 @@ Raiders leave clues; the victim gets a time-limited chance to get the **same** l
 - Recovery must transfer the **same** loot, never mint another copy. The bundle ids minted in a raid are the ids a recovery would move.
 - NPC police must not track omnisciently; solo must always keep an achievable escape. Human police switch-over must be safe.
 - Deferred, per the owner: cargo-ship heists, framing rivals, forced loot-vs-teammate choice. Canceled: the weekly rare gun.
-- Open decisions still owed: weekly boundary/timezone and persistent server-world routing for the rare car; NPC difficulty selection method; bounty claim attribution on disconnect.
+- Open decisions still owed: weekly boundary/timezone and persistent server-world routing for the rare car; NPC difficulty selection method.
 
 ## Police (NPC fallback this milestone)
 - Heat per player (0–300; levels 1–3) from the alarm (120), smashing doors, being seen carrying loot (60/10 s), being rammed (40). Decays 2.5/s only after 20 s unseen. Vehicles seen with a wanted driver are recognised for 90 s.

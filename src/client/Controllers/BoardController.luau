@@ -21,6 +21,7 @@ local pendingShares = nil
 local hideout = nil -- last HideoutState
 local profileState = nil -- last ProfileState
 local targets = {}
+local wanted = nil
 local tabs = {}
 local currentTab = "Job"
 
@@ -166,12 +167,13 @@ local function build()
 	local hideoutTab = Make.frame(panel, "HideoutTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
 	local raidTab = Make.frame(panel, "RaidTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
 	local looksTab = Make.frame(panel, "LooksTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
-	tabs = { Job = jobTab, Hideout = hideoutTab, Raids = raidTab, Looks = looksTab }
-	for i, name in ipairs({ "Job", "Hideout", "Raids", "Looks" }) do
+	local wantedTab = Make.frame(panel, "WantedTab", UDim2.new(1, 0, 1, -70), UDim2.new(0, 0, 0, 70), Theme.Panel, 1)
+	tabs = { Job = jobTab, Hideout = hideoutTab, Raids = raidTab, Wanted = wantedTab, Looks = looksTab }
+	for i, name in ipairs({ "Job", "Hideout", "Raids", "Wanted", "Looks" }) do
 		local b = Make.ghostButton(tabBar, "Tab" .. name, name, function()
 			BoardController.showTab(name)
 		end)
-		b.Size = UDim2.new(0, 100, 1, 0)
+		b.Size = UDim2.new(0, 92, 1, 0)
 		b.LayoutOrder = i
 		refs["tab" .. name] = b
 	end
@@ -312,7 +314,65 @@ local function build()
 	ls.Parent = lk
 	Make.list(ls, 4)
 	refs.looks = ls
+	-- Wanted tab: bounties
+	local wt = Make.frame(wantedTab, "Wanted", UDim2.new(1, 0, 1, 0), UDim2.new(), Theme.Panel, 1)
+	Make.list(wt, 6)
+	Make.label(wt, "Head", "Bounties are paid from your stash and stack on the target until someone outside their crew takes them down on foot (hold on them for 2 s). Contributors and crewmates can't claim; a target can't be claimed again for 5 minutes. Being taken down drops your bag.", Theme.Small, Theme.Muted)
+	local amountRow = Make.frame(wt, "AmountRow", UDim2.new(1, 0, 0, Theme.MinButton), UDim2.new(), Theme.Panel, 1)
+	refs.bountyBox = Make.textbox(amountRow, "Amount", "Bounty amount (min 100)")
+	refs.bountyBox.Size = UDim2.new(0.5, 0, 1, 0)
+	local ws = Instance.new("ScrollingFrame")
+	ws.Size = UDim2.new(1, 0, 1, -130)
+	ws.BackgroundTransparency = 1
+	ws.BorderSizePixel = 0
+	ws.ScrollBarThickness = 6
+	ws.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	ws.CanvasSize = UDim2.new()
+	ws.Parent = wt
+	Make.list(ws, 4)
+	refs.wantedList = ws
+	Make.ghostButton(wt, "RefreshWanted", "Refresh", function()
+		hideoutSend("listWanted")
+	end)
 	BoardController.showTab("Job")
+end
+
+local function renderWanted()
+	for _, ch in ipairs(refs.wantedList:GetChildren()) do
+		if ch:IsA("Frame") then
+			ch:Destroy()
+		end
+	end
+	local rows = wanted and wanted.wanted or {}
+	if #rows == 0 then
+		local f = Make.frame(refs.wantedList, "Empty", UDim2.new(1, -8, 0, 40), UDim2.new(), Theme.PanelAlt, 0.3)
+		Make.corner(f, 8)
+		Make.padding(f, 8)
+		Make.label(f, "T", "Nobody else is on this server right now.", Theme.Small, Theme.Muted)
+		return
+	end
+	for i, w in ipairs(rows) do
+		local row = Make.frame(refs.wantedList, "W" .. i, UDim2.new(1, -8, 0, 50), UDim2.new(), Theme.PanelAlt, 0.3)
+		row.LayoutOrder = i
+		Make.corner(row, 8)
+		Make.padding(row, 6)
+		local l = Make.label(row, "Name", string.format("<b>%s</b>  %s%s", w.name, if (w.bounty or 0) > 0 then "BOUNTY " .. fmt(w.bounty) else "no bounty", if w.crewmate then " · crewmate" elseif w.jailed then " · in a cell" else ""), Theme.Body, if (w.bounty or 0) > 0 then Theme.Alarm else Theme.Text)
+		l.Size = UDim2.new(1, -130, 1, 0)
+		l.TextYAlignment = Enum.TextYAlignment.Center
+		l.AutomaticSize = Enum.AutomaticSize.None
+		if not w.crewmate then
+			local b = Make.button(row, "Place", "Add bounty", Theme.Gold, function()
+				local n = tonumber(refs.bountyBox.Text)
+				if n then
+					hideoutSend("placeBounty", { userId = w.userId, amount = math.floor(n) })
+					refs.bountyBox.Text = ""
+				end
+			end)
+			b.Size = UDim2.new(0, 120, 0, 36)
+			b.Position = UDim2.new(1, -120, 0, 1)
+			b.TextColor3 = Theme.Panel
+		end
+	end
 end
 
 local function renderLooks()
@@ -370,6 +430,8 @@ function BoardController.showTab(name: string)
 		hideoutSend("listTargets")
 	elseif name == "Looks" then
 		Net.event("ProfileRequest"):FireServer({ action = "refresh" })
+	elseif name == "Wanted" then
+		hideoutSend("listWanted")
 	end
 end
 
@@ -380,7 +442,7 @@ local function renderHideout()
 	local h = hideout
 	refs.stashLine.Text = string.format("Stash: %s", fmt(h.stash))
 	refs.exposedLine.Text = if (h.stash or 0) > 0 then string.format("HIGH STAKES: a cracked safe takes ALL of it (%s). Your defences and the police are the only protection%s.", fmt(h.exposed or 0), if h.bankingEnabled then "; banked money can't be raided" else "") else "Your stash is empty. Everything you earn lands here, and a raid can take all of it."
-	refs.tierLine.Text = string.format("Hideout tier %d / %d", h.tier or 0, h.maxTier or 6)
+	refs.tierLine.Text = string.format("Hideout tier %d / %d%s", h.tier or 0, h.maxTier or 6, if (h.bounty or 0) > 0 then string.format("   ·   BOUNTY ON YOU: %s", fmt(h.bounty)) else "")
 	if h.nextCost then
 		refs.upgrade.Text = string.format("Upgrade to tier %d — %s (%s)", (h.tier or 0) + 1, fmt(h.nextCost), h.nextDesc or "")
 		refs.upgrade.Visible = true
@@ -427,6 +489,12 @@ local function renderHideout()
 			btn.TextColor3 = Theme.Panel
 		elseif r.recoveryUntil and owed > 0 then
 			Make.label(card, "Cold", "Trail went cold: the recovery window closed.", Theme.Small, Theme.Muted)
+		end
+		if not r.recovery and r.raider and tonumber(r.raider) then
+			local bb = Make.ghostButton(card, "Bounty", "Put 500 on " .. tostring(r.raiderName), function()
+				hideoutSend("placeBounty", { userId = tonumber(r.raider), amount = 500 })
+			end)
+			bb.TextSize = Theme.Small
 		end
 	end
 end
@@ -502,6 +570,8 @@ function BoardController.open()
 		renderTargets()
 	elseif currentTab == "Looks" then
 		renderLooks()
+	elseif currentTab == "Wanted" then
+		renderWanted()
 	end
 	if UserInputService.GamepadEnabled then
 		GuiService.SelectedObject = refs.start
@@ -528,6 +598,12 @@ function BoardController.init(bootstrap)
 		hideout = h
 		if open and currentTab == "Hideout" then
 			renderHideout()
+		end
+	end)
+	Net.event("WantedList").OnClientEvent:Connect(function(d)
+		wanted = d
+		if open and currentTab == "Wanted" then
+			renderWanted()
 		end
 	end)
 	Net.event("ProfileState").OnClientEvent:Connect(function(ps)

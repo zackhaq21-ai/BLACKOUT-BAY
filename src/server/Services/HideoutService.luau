@@ -166,6 +166,7 @@ function HideoutService.pushState(player: Player)
 		end
 		player:SetAttribute("Stash", record.stash)
 		player:SetAttribute("HideoutTier", record.tier)
+		HideoutService.ctx.services.Bounty.syncPrompt(player, (record.bounty and record.bounty.total) or 0)
 		local raided = lastUnread[player] ~= nil and record.unread > lastUnread[player]
 		if lastUnread[player] == nil and record.ownerName ~= Comms.name(player) then
 			local name = Comms.name(player)
@@ -190,6 +191,7 @@ function HideoutService.pushState(player: Player)
 			fullExposure = Config.Hideout.FullExposure,
 			backend = Store.backend,
 			now = os.time(),
+			bounty = (record.bounty and record.bounty.total) or 0,
 		})
 		if raided then
 			Comms.toast(player, "Your hideout was raided while you were away. Read the report on the job board (Hideout tab).", "alarm")
@@ -318,6 +320,10 @@ function HideoutService.handleRequest(player: Player, req)
 		S.Raid.startRaid(player, req.userId)
 	elseif action == "recover" then
 		S.Raid.startRecovery(player, req.raidId)
+	elseif action == "placeBounty" then
+		S.Bounty.place(player, req.userId, tonumber(req.amount) or 0)
+	elseif action == "listWanted" then
+		S.Bounty.listWanted(player)
 	elseif action == "fake" then
 		local crew = S.Crew.crewOf(player)
 		local unit = crew and crew.unit

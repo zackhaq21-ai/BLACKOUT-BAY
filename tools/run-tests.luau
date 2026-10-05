@@ -7,7 +7,7 @@ local SPECS = {
 	"../tests/security_state.spec",
 	"../tests/rate_limiter.spec",
 	"../tests/rare_car_cycle.spec",
-	"../tests/bounty_pool.spec",
+	"../tests/bounty_record.spec",
 	"../tests/heat.spec",
 	"../tests/map_blueprint.spec",
 	"../tests/road_graph.spec",

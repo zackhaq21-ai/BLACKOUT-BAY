@@ -2,20 +2,20 @@
 
 Keep this short. Current task, decisions, changed files, verification, blockers, next step.
 
-## Current state: review branch `claude/review-m6-decoys` (not merged)
-Base: the merged recovery branch. Adds fake bags and the decoy-vehicle tactic on top of raids and recovery.
+## Current state: review branch `claude/review-m7-bounties` (stacked on `claude/review-m6-decoys`, neither merged)
+Adds in-world bounties on top of fake bags, recovery and raids.
 
 ### Done on this branch
-- `Config.Decoys`; `HideoutRecord.spend` (raid-locked, tested); `LootService.mintFake` / `clearFakes`; fakes mimic a kind visually and on nameplates, are always light, reveal themselves to non-crew on pickup, deliver as nothing, are never job loot, and expire at job close; zero-value bags are cleaned up by hideout retention.
-- Job board: "Getaway kit" buttons (fake Trinket / Relic / Jewel / Core / stash) with the tactic note; engine scenario covers minting, carrying under the mimic label, delivery for nothing, and stash unchanged.
+- `BountyRecord` (pure, tested) replaces the unused `BountyPool`: contributions stack on the target's hideout record, one atomic claim, refusals for self/contributor/crewmate/cooldown, refunds.
+- `BountyService`: debit-then-credit placement with refund on failure, takedown prompt on wanted players (2 s hold, 7 studs, on foot only), stun + bag drop, payout to the hunter's stash, logs and notices; Wanted tab with amount box; "Put 500 on <raider>" on raid reports; nameplates show bounties; engine scenario for 3+ players (contributor refused, hunter paid exactly once).
 
 ### Verification
 `tools/check.sh`: type check 0 errors, lint 0 warnings, 58/58 logic tests, both places build. Studio scenarios written, not run (no Studio here).
 
 ### Not implemented (from the full vision)
-In-world bounties; player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; district blackouts; convoys; player combat; live purchases; sound assets; custom art; performance profiling.
+Player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; district blackouts; convoys; weapons/combat beyond takedowns; live purchases; sound assets; custom art; performance profiling.
 
 ### Next task
-1. On the prepared PC: `tools\verify-engine.ps1 -Players 1,2,5`; fix what it reports; play by hand per `docs/LAUNCH.md`.
-2. Merge this review branch if accepted.
-3. Then: in-world bounties (pure `BountyPool` is already tested), then blackouts.
+1. On the prepared PC: `tools\verify-engine.ps1 -Players 1,3,5`; fix what it reports; play by hand per `docs/LAUNCH.md`.
+2. Merge `claude/review-m6-decoys` then `claude/review-m7-bounties` if accepted (fast-forward in that order).
+3. Then: crew-triggered blackouts (district outage with bounded duration and cooldown), then armored convoys.

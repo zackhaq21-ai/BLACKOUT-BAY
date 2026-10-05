@@ -25,6 +25,7 @@ Net.Events = {
 	"RaidTargets", -- {targets}
 	"RaidState", -- raider/defender raid snapshot or {active=false}
 	"ProfileState", -- {xp, wins, entitlements, equipped, catalog, commerce}
+	"WantedList", -- {wanted = {{userId, name, bounty, crewmate}}, min, max}
 	-- client -> server
 	"CrewRequest", -- {action, ...}
 	"MissionRequest", -- {action, ...}

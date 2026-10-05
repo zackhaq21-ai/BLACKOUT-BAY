@@ -140,6 +140,13 @@ hook.OnInvoke = function(action, a, b, c)
 		end
 		local state = S.Raid.unitState(raid.unitId)
 		return { active = raid.active, cracked = raid.cracked, stolen = raid.stolen, retained = raid.retained, unitId = raid.unitId, safe = state and state.refs.safe or nil, pierDoor = state and state.refs.pierDoor or nil, breaker = state and state.refs.breaker or nil, unitModel = raid.unit.model, bundles = raid.bundles }
+	elseif action == "grantStash" then
+		return S.Hideout.depositStash(a, b, "engine test grant")
+	elseif action == "placeBounty" then
+		S.Bounty.place(a, b, c)
+		return S.Bounty.totalOn(b)
+	elseif action == "bounty" then
+		return S.Bounty.totalOn(a.UserId)
 	elseif action == "fake" then
 		return S.Loot.mintFake(a, b or "Jewel")
 	elseif action == "recover" then

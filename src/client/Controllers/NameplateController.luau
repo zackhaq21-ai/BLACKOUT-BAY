@@ -79,6 +79,9 @@ local function refresh()
 			if carrying then
 				table.insert(parts, "carrying " .. carrying)
 			end
+			if (other:GetAttribute("Bounty") or 0) > 0 then
+				table.insert(parts, "BOUNTY " .. fmt(other:GetAttribute("Bounty")))
+			end
 			if (other:GetAttribute("HeatLevel") or 0) > 0 then
 				table.insert(parts, "WANTED")
 			end
@@ -92,7 +95,7 @@ local function refresh()
 				plate.gui.MaxDistance = 120
 			end
 			plate.info.Text = table.concat(parts, " · ")
-			plate.info.TextColor3 = if (other:GetAttribute("HeatLevel") or 0) > 0 then Palette.SecurityRed else Palette.Gold
+			plate.info.TextColor3 = if (other:GetAttribute("HeatLevel") or 0) > 0 or (other:GetAttribute("Bounty") or 0) > 0 then Palette.SecurityRed else Palette.Gold
 		end
 	end
 end

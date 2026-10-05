@@ -16,6 +16,9 @@ tools/build.sh        # writes build/BlackoutBay.rbxl
 ```
 Or run `rojo serve` and connect the Rojo Studio plugin to live-sync.
 
+## Bounties (two or more clients)
+Board → **Wanted** tab: type an amount (min 100) and press **Add bounty** on another player. Expected: your stash drops by that amount, their nameplate shows "BOUNTY n", everyone sees a WANTED notice. A third client who is not in the target's crew walks up to the target on foot and holds **Take down** for 2 s: the target drops their bag and is down for 4 s, the hunter's stash rises by the whole bounty, and the nameplate clears. The contributor pressing Take down is refused.
+
 ## Fake bags and decoy cars
 At your job board (Job tab → Getaway kit) press **Fake Jewel**. Expected: 150 leaves the leader's stash and you are carrying what looks like an Aurora Jewel; other players' nameplates say you carry a Jewel. Deliver it at your table: "That bag was a fake." A second client who picks a dropped fake up is told it is fake at once. For a decoy car, roll out the Courier as well, put the fake in one trunk and the real bags in the other, and send the fake the loud way.
 

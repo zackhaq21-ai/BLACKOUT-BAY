@@ -201,9 +201,16 @@ Config.RareCar = {
 	Seats = 2,
 }
 
+-- Bounties: funded from the contributor's earned stash, held on the target's hideout record, paid once to the
+-- hunter who takes the target down on foot. Never real money.
 Config.Bounty = {
 	MinContribution = 100,
+	MaxContribution = 1000000,
 	ClaimCooldownSeconds = 300, -- same target cannot be claimed again for this long
+	TakedownSeconds = 2, -- hold on the target, within range, target on foot
+	TakedownRange = 7,
+	TakedownBreakRange = 10,
+	StunSeconds = 4, -- the taken-down target drops their bag and is down for this long
 }
 
 return Config

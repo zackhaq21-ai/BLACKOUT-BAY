@@ -36,6 +36,7 @@ export type Record = {
 	lifetimeEarned: number,
 	ownerName: string?,
 	recoveries: { [string]: number }?, -- raidId -> value already recovered FROM this record (one claim chain per raid)
+	bounty: any?, -- BountyRecord.Bounty held on this owner (see BountyRecord)
 }
 
 local HideoutRecord = {}
@@ -87,6 +88,9 @@ function HideoutRecord.migrate(raw: any): Record
 	end
 	if type(raw.recoveries) == "table" then
 		d.recoveries = raw.recoveries
+	end
+	if type(raw.bounty) == "table" and type(raw.bounty.total) == "number" then
+		d.bounty = raw.bounty
 	end
 	return d
 end
