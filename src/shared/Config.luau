@@ -208,8 +208,7 @@ Config.Bounty = {
 	MaxContribution = 1000000,
 	ClaimCooldownSeconds = 300, -- same target cannot be claimed again for this long
 	TakedownSeconds = 2, -- hold on the target, within range, target on foot
-	TakedownRange = 7,
-	TakedownBreakRange = 10,
+	TakedownRange = 7, -- authoritative: server, prompt, UI, tests and docs all use this value
 	StunSeconds = 4, -- the taken-down target drops their bag and is down for this long
 }
 
