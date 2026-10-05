@@ -301,6 +301,10 @@ local ok, result = xpcall(function()
 			-- forged early trigger (no server-side hold) must not pay either
 			hook:Invoke("trigger", hunter, leader.Character.HumanoidRootPart, "Takedown")
 			assert(hook:Invoke("bounty", leader) == 400, "Forged trigger without a hold claimed the bounty")
+			-- out of range (9 studs) must not progress; then in range (3 studs) succeeds
+			move(hunter, unit.spawn.Position + Vector3.new(4, 0, -9))
+			hook:Invoke("takedown", hunter, leader.Character.HumanoidRootPart)
+			assert(hook:Invoke("bounty", leader) == 400, "Out-of-range takedown claimed")
 			move(hunter, unit.spawn.Position + Vector3.new(4, 0, -3))
 			hook:Invoke("takedown", hunter, leader.Character.HumanoidRootPart)
 			waitFor(function()

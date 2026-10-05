@@ -37,7 +37,7 @@ function BountyService.syncPrompt(target: Player, total: number)
 			pp.MaxActivationDistance = BC.TakedownRange
 			existing = pp
 		end
-		existing.ObjectText = string.format("Bounty %d · on foot only", total)
+		existing.ObjectText = string.format("Bounty %d · within %d studs, on foot", total, BC.TakedownRange)
 	elseif existing then
 		existing:Destroy()
 	end
@@ -155,7 +155,7 @@ local function eligible(hunter: Player, prompt: ProximityPrompt): (Player?, stri
 	end
 	local hroot = (hunter.Character :: Model):FindFirstChild("HumanoidRootPart")
 	local troot = (target.Character :: Model):FindFirstChild("HumanoidRootPart")
-	if not hroot or not troot or not hroot:IsA("BasePart") or not troot:IsA("BasePart") or (hroot.Position - troot.Position).Magnitude > BC.TakedownRange + 1 then
+	if not hroot or not troot or not hroot:IsA("BasePart") or not troot:IsA("BasePart") or (hroot.Position - troot.Position).Magnitude > BC.TakedownRange then
 		return nil, "too far"
 	end
 	if (tonumber(target:GetAttribute("Bounty")) or 0) <= 0 then

@@ -317,7 +317,7 @@ local function build()
 	-- Wanted tab: bounties
 	local wt = Make.frame(wantedTab, "Wanted", UDim2.new(1, 0, 1, 0), UDim2.new(), Theme.Panel, 1)
 	Make.list(wt, 6)
-	Make.label(wt, "Head", "Bounties are paid from your stash and stack on the target until someone outside their crew takes them down on foot (hold on them for 2 s). Contributors and crewmates can't claim; a target can't be claimed again for 5 minutes. Being taken down drops your bag.", Theme.Small, Theme.Muted)
+	Make.label(wt, "Head", "Bounties are paid from your stash and stack on the target until someone outside their crew takes them down on foot (hold on them for 2 s within 7 studs). Contributors and crewmates can't claim; a target can't be claimed again for 5 minutes. Being taken down drops your bag.", Theme.Small, Theme.Muted)
 	local amountRow = Make.frame(wt, "AmountRow", UDim2.new(1, 0, 0, Theme.MinButton), UDim2.new(), Theme.Panel, 1)
 	refs.bountyBox = Make.textbox(amountRow, "Amount", "Bounty amount (min 100)")
 	refs.bountyBox.Size = UDim2.new(0.5, 0, 1, 0)
