@@ -137,7 +137,6 @@ Config.Mission = {
 	StartWindowSeconds = 900, -- a job auto-closes after this long
 	CloseGraceSeconds = 25, -- after the last bag is delivered or lost, the job stays open this long for another trip
 	ResultsSeconds = 12,
-	TutorialHints = true,
 }
 
 Config.Net = {

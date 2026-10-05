@@ -95,14 +95,36 @@ local hook, control, list, leader, unit, world, crew
 local perfClient = {} -- player -> last sample
 local tierAck = {}
 
+-- Teleport and CONFIRM arrival on the server before anything depends on the position. A relocate can be
+-- undone by an in-flight client physics update or a not-yet-loaded character, so retry, then fail with the
+-- measured distance instead of letting a later prompt fail mysteriously out of range.
+local ARRIVE_RADIUS = 6
 local function move(p, where)
-	hook:Invoke("move", p, where)
-	task.wait(0.35)
+	local target = if typeof(where) == "CFrame" then where.Position else where
+	local lastDistance = math.huge
+	for attempt = 1, 3 do
+		hook:Invoke("move", p, where)
+		local t0 = os.clock()
+		repeat
+			task.wait(0.1)
+			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+			lastDistance = if root then (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(target.X, 0, target.Z)).Magnitude else math.huge
+		until lastDistance <= ARRIVE_RADIUS or os.clock() - t0 > 1.5
+		if lastDistance <= ARRIVE_RADIUS then
+			task.wait(0.25) -- let ownership hand back and the client settle before a prompt depends on it
+			return
+		end
+		print("GLASSHOUSE_ENGINE_MOVE_RETRY", p.Name, attempt, "distance", math.floor(lastDistance))
+	end
+	check("move " .. p.Name, "within " .. ARRIVE_RADIUS .. " studs of " .. tostring(target), string.format("%.0f studs away", lastDistance), false)
 end
 
+-- Dispatch a prompt through the real InteractionService validation; report the measured distance on refusal.
 local function trigger(p, part, tag)
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	local distance = if root and part and part:IsA("BasePart") then (part.Position - root.Position).Magnitude else math.huge
 	local okT, err = hook:Invoke("trigger", p, part, tag)
-	check("trigger " .. tag, "accepted", tostring(err) .. " " .. enc(hook:Invoke("diagnostic", p)), okT == true)
+	check("trigger " .. tag, "accepted within range", string.format("refused (%s) at %.0f studs; %s", tostring(err), distance, enc(hook:Invoke("diagnostic", p))), okT == true)
 	task.wait(0.3)
 end
 

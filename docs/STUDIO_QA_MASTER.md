@@ -2,6 +2,9 @@
 
 One run covers the whole review stack. Nothing here has been executed yet: **every result below is PENDING** until this is run on a machine with Roblox Studio.
 
+## 0. Which harness is which
+The first real 1-player run reported a character about 113 studs from an **"Enter"** interaction. "Enter" is a prompt of the preserved prototype (`prototype/aurora-v0/tests/engine_driver.server.luau`), not of this game: the current scenario has no Enter prompt (its tags are FrontSmash, CaseCut, LootTake, Trunk, Deliver, GridSabotage, GridReset, ConvoyBreach, RaidSafe, Takedown…). The valid run is only `tools\verify-engine.ps1 -Players 1,3,5` against `build/BlackoutBay-EngineTest.rbxl` from the current branch. The same class of hazard (teleport, then an immediate prompt) is now guarded in this scenario: `move()` confirms server-side arrival within 6 studs, retries the relocate up to three times (`GLASSHOUSE_ENGINE_MOVE_RETRY` lines), and fails with the measured distance; `trigger()` reports the measured distance on refusal. Gameplay distance and security rules were not changed.
+
 ## 1. Automated master scenario (objective checks)
 
 Infrastructure (existing): `tools\verify-engine.ps1 -Players 1,3,5` → run-in-roblox → `build/BlackoutBay-EngineTest.rbxl` → `tests/engine/driver.server.luau` under StudioTestService (1 client in play mode, 3 and 5 clients as real multiplayer tests). Evidence is written to `build/engine-results.txt` (every `GLASSHOUSE_*` line from all counts) and per count to `build/engine-<n>-results.txt`.
