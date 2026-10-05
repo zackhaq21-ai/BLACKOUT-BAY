@@ -10,6 +10,7 @@ local SPECS = {
 	"../tests/bounty_record.spec",
 	"../tests/world_event_rules.spec",
 	"../tests/blackout_rules.spec",
+	"../tests/convoy_rules.spec",
 	"../tests/heat.spec",
 	"../tests/map_blueprint.spec",
 	"../tests/road_graph.spec",

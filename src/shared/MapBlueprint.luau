@@ -51,6 +51,15 @@ do
 	end
 end
 
+-- Armored convoy routes: waypoints are drivable road nodes (axis-aligned legs along one road each).
+-- `checkpoints` are waypoint indices where the convoy makes a planned halt. Validated by tests/map_blueprint.spec.
+Blueprint.ConvoyRoutes = {
+	{ name = "Lighthouse Run", waypoints = { { x = 560, z = -440 }, { x = 560, z = 300 }, { x = -200, z = 300 }, { x = -200, z = 140 }, { x = 560, z = 140 } }, checkpoints = { 2, 3 } },
+	{ name = "Boulevard Express", waypoints = { { x = -560, z = -400 }, { x = -560, z = -60 }, { x = -200, z = -60 }, { x = 280, z = -60 }, { x = 560, z = -60 }, { x = 560, z = 140 } }, checkpoints = { 3, 4 } },
+	{ name = "Station Circuit", waypoints = { { x = 560, z = 140 }, { x = -200, z = 140 }, { x = -200, z = -60 }, { x = 280, z = -60 }, { x = 280, z = 300 }, { x = 560, z = 300 } }, checkpoints = { 2, 4 } },
+	{ name = "Seawall Loop", waypoints = { { x = -200, z = -400 }, { x = -560, z = -400 }, { x = -560, z = -60 }, { x = -560, z = 300 }, { x = 280, z = 300 } }, checkpoints = { 3, 4 } },
+}
+
 -- Harbour Substation: the grid cabinet a crew can sabotage (crew-triggered blackout). In the crane yard.
 Blueprint.Substation = { x = -440, z = 14, w = 36, d = 22 }
 

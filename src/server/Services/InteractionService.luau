@@ -203,6 +203,7 @@ function InteractionService.start()
 			buildTag = Config.BuildTag,
 			securityLevel = S.Security.level(),
 			worldEvents = S.WorldEvent.snapshot(),
+			convoy = S.Convoy.snapshot(),
 		}
 	end
 end

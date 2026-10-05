@@ -57,6 +57,48 @@ return function(t)
 		t.falsy(overlaps(sr, { x1 = B.Canal.x - B.Canal.width / 2, x2 = B.Canal.x + B.Canal.width / 2, z1 = B.Canal.fromZ, z2 = B.Canal.toZ }), "substation in the canal")
 	end)
 
+	t.test("convoy routes: legs on drivable roads, connected in the road graph, distinct starts, sane lengths", function()
+		local RoadGraph = require("../src/shared/Core/RoadGraph")
+		local Convoy = require("../src/shared/Core/ConvoyRules")
+		local graph = RoadGraph.new(B.Roads)
+		local function onRoadPoint(x, z)
+			for _, r in ipairs(B.Roads) do
+				if not r.pedestrian then
+					local x1, x2 = math.min(r.from.x, r.to.x) - r.width / 2, math.max(r.from.x, r.to.x) + r.width / 2
+					local z1, z2 = math.min(r.from.z, r.to.z) - r.width / 2, math.max(r.from.z, r.to.z) + r.width / 2
+					if x >= x1 and x <= x2 and z >= z1 and z <= z2 then return true end
+				end
+			end
+			return false
+		end
+		local function onRoad(a, b)
+			local steps = math.max(1, math.floor((math.abs(b.x - a.x) + math.abs(b.z - a.z)) / 20))
+			for i = 0, steps do
+				local f = i / steps
+				if not onRoadPoint(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f) then return false end
+			end
+			return true
+		end
+		t.truthy(#B.ConvoyRoutes >= 3, "need several routes")
+		local starts = {}
+		for _, route in ipairs(B.ConvoyRoutes) do
+			t.truthy(#route.waypoints >= 3, route.name)
+			for i = 2, #route.waypoints do
+				local a, b = route.waypoints[i - 1], route.waypoints[i]
+				t.truthy(a.x == b.x or a.z == b.z, route.name .. " leg " .. i .. " not axis-aligned")
+				t.truthy(onRoad(a, b), route.name .. " leg " .. i .. " leaves the drivable roads")
+				t.truthy(graph:path(graph:nearest(a.x, a.z), graph:nearest(b.x, b.z)) ~= nil, route.name .. " leg " .. i .. " unreachable")
+			end
+			local len = Convoy.routeLength(route)
+			t.truthy(len >= 1200 and len <= 3500, route.name .. " length " .. len)
+			for _, c in ipairs(route.checkpoints) do t.truthy(c > 1 and c <= #route.waypoints, route.name .. " checkpoint index") end
+			local s = route.waypoints[1]
+			t.truthy(math.abs(s.x) ~= B.Canal.x, route.name .. " starts in the canal")
+			for _, o in ipairs(starts) do t.truthy((o.x - s.x) ^ 2 + (o.z - s.z) ^ 2 >= 200 * 200, route.name .. " starts next to another route") end
+			table.insert(starts, s)
+		end
+	end)
+
 	t.test("six hideouts, unique ids, spaced apart", function()
 		t.eq(#B.Hideouts, 6)
 		local ids = {}

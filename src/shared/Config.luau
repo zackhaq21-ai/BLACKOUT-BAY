@@ -102,6 +102,9 @@ Config.Vehicles = {
 	Courier = { label = "Courier Van", maxSpeed = 48, accel = 22, brake = 50, steer = 0.45, seats = 4, trunk = 5, health = 220, mass = 1.4 },
 	Commuter = { label = "Commuter", maxSpeed = 54, accel = 24, brake = 50, steer = 0.5, seats = 4, trunk = 1, health = 100, mass = 1 },
 	Cruiser = { label = "Police Cruiser", maxSpeed = 64, accel = 30, brake = 60, steer = 0.55, seats = 2, trunk = 0, health = 200, mass = 1.2 },
+	-- Convoy vehicles (NPC-driven, server-owned). The transport is deliberately heavy and slow to turn.
+	Armored = { label = "Armored Transport", maxSpeed = 44, accel = 16, brake = 70, steer = 0.35, seats = 2, trunk = 0, health = 600, mass = 3.2 },
+	Escort = { label = "Security Escort", maxSpeed = 62, accel = 28, brake = 60, steer = 0.55, seats = 2, trunk = 0, health = 240, mass = 1.3 },
 	RamDamage = 25, -- vehicle health lost when a cruiser rams at pursuit speed
 	DisabledSmokeSeconds = 120,
 	RespawnSeconds = 45,
@@ -145,7 +148,10 @@ Config.Audio = {
 	Cues = {
 		Pickup = "", Drop = "", Deliver = "", Alarm = "", Suspicious = "", Lockdown = "",
 		Smash = "", Drill = "", Keypad = "", Unlock = "", Siren = "", Payout = "", Arrest = "", PowerCut = "",
+		ConvoyAnnounce = "", ConvoyAlert = "", ConvoyBreach = "", ConvoyLost = "", ConvoyDelivered = "", ConvoyRadio = "",
 	},
+	-- Looping engine beds per vehicle kind (blank = silent hook; the Sound instance still exists on the chassis)
+	Engines = { Armored = "", Escort = "" },
 }
 
 -- Hideout stash and raids. OWNER DECISION (2026-10-04): high stakes. A successful raid exposes the FULL earned
@@ -204,6 +210,35 @@ Config.WorldEvents = {
 		GuardVisionScale = 0.55, -- museum guards see this fraction of their normal range
 		PoliceVisionScale = 0.6, -- cruisers see this fraction; plates cannot be read (no new recognitions)
 		RequiresActiveJob = true, -- only a crew on a job can cut the grid (cost/risk, no idle griefing)
+	},
+	-- Armored convoy: anticipation → tracking → interception → escalation → extraction → escape → cooldown.
+	Convoy = {
+		AnticipationSeconds = 40, -- announced before the vehicles roll
+		MaxDurationSeconds = 420, -- hard bound on the whole event
+		CooldownSeconds = 900, -- per server, from the end of the event
+		AutoScheduleSeconds = 480, -- a new convoy is scheduled this long after cooldown when players are present
+		AutoScheduleJitterSeconds = 240,
+		MinPlayersToSchedule = 1,
+		CargoValues = { 2000, 2000, 2000 }, -- server-owned; about a Core's worth across three crates
+		CargoLabel = "Secured Cargo",
+		BreachSeconds = 10, -- hold on the rear doors while the transport is stopped
+		BlackoutBreachFactor = 0.6, -- the electronic lock is dead during a blackout
+		LockSeconds = 20, -- doors seal after an interrupted breach
+		StopSpeed = 4, -- transport counts as stopped below this
+		CheckpointSeconds = 18, -- planned halts (interception windows); skipped once the convoy is engaged
+		CruiseSpeed = 26,
+		AlertSpeedFactor = 1.3,
+		EscortViewRange = 55, -- escort perception, scaled by the police vision scale during a blackout
+		SeenHeatPerSecond = 6, -- while engaged, anyone an escort can see near the convoy gathers heat
+		AttackHeat = 80, -- ramming, breaching
+		CrippleFraction = 0.5, -- transport health fraction at which it halts for good
+		RamDamage = 30, -- to the transport per qualifying hit
+		RamSpeed = 18,
+		BlockPatienceSeconds = 6, -- blocked this long: escorts go alert and the lead tries to back out
+		StuckGiveUpSeconds = 60,
+		AbandonSeconds = 150, -- loose crates nobody touches are recovered by Harbour Security
+		MinSpawnDistanceFromPlayers = 90,
+		FormationGap = 22,
 	},
 }
 

@@ -186,6 +186,29 @@ hook.OnInvoke = function(action, a, b, c)
 		return S.Blackout.testHold(a, "reset")
 	elseif action == "worldEvent" then
 		return S.WorldEvent.snapshot()
+	elseif action == "convoyStart" then
+		return S.Convoy.testStart(a)
+	elseif action == "convoyState" then
+		return S.Convoy.snapshot()
+	elseif action == "convoyHalt" then
+		S.Convoy.testHalt(a == true)
+		return true
+	elseif action == "convoyDoors" then
+		for _, rec in pairs(S.Vehicle.all()) do
+			if rec.kind == "Armored" then
+				return rec.model:FindFirstChild("CargoDoors")
+			end
+		end
+		return nil
+	elseif action == "breach" then
+		return S.Convoy.testHold(a)
+	elseif action == "convoyCrates" then
+		return S.Convoy.testCrates()
+	elseif action == "convoyVehicles" then
+		return S.Convoy.testVehicles()
+	elseif action == "convoyEnd" then
+		S.Convoy.testEnd()
+		return S.Convoy.isActive() == false
 	elseif action == "gridLights" then
 		return S.Blackout.lightReport()
 	elseif action == "gridState" then

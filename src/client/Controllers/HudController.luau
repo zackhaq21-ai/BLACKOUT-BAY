@@ -14,7 +14,7 @@ local HudController = {}
 local player = Players.LocalPlayer
 local gui
 local refs: { [string]: any } = {}
-local state = { worldEvents = {}, cash = 0, crew = nil, mission = nil, carry = nil, security = 0, heat = 0, detection = 0, detectionAt = 0, detectionSource = nil, detectionPos = nil, keycards = {}, cuffing = 0, jailed = false }
+local state = { worldEvents = {}, convoy = nil, cash = 0, crew = nil, mission = nil, carry = nil, security = 0, heat = 0, detection = 0, detectionAt = 0, detectionSource = nil, detectionPos = nil, keycards = {}, cuffing = 0, jailed = false }
 local logOpen = false
 
 local function fmt(n: number): string
@@ -345,10 +345,27 @@ local function setWorldEvent(e)
 	end
 end
 
+local function convoyLine(c): string
+	local phase = tostring(c.phase or "")
+	local where = tostring(c.landmark or "")
+	local cargo = tostring(c.cargo or "secured")
+	local cargoText = if cargo == "secured" then "cargo secured" elseif cargo == "sealed" then "cargo sealed" elseif cargo == "loose" then string.format("%d crates loose", c.crates or 0) else "cargo taken"
+	if phase == "Departing" then
+		return "Leaving soon from " .. where .. " · " .. cargoText
+	elseif phase == "Checkpoint" then
+		return "Security check at " .. where .. " · " .. cargoText
+	elseif phase == "Crippled" or phase == "Halted" then
+		return "Stopped near " .. where .. " · " .. cargoText
+	elseif phase == "Breached" then
+		return "Breached near " .. where .. " · " .. cargoText .. " · get them to your pier"
+	end
+	return "Moving near " .. where .. " · " .. cargoText
+end
+
 local function updateBanner()
 	local pick = nil
 	for _, e in pairs(state.worldEvents) do
-		if not pick or (e.endsAt or 0) > (pick.endsAt or 0) then
+		if not pick or e.id == "convoy" or ((e.endsAt or 0) > (pick.endsAt or 0) and pick.id ~= "convoy") then
 			pick = e
 		end
 	end
@@ -359,7 +376,13 @@ local function updateBanner()
 	local left = math.max(0, (pick.endsAt or 0) - workspace:GetServerTimeNow())
 	refs.banner.Visible = true
 	refs.bannerTitle.Text = string.format("%s · %d:%02d", tostring(pick.label or pick.id), math.floor(left / 60), math.floor(left % 60))
-	refs.bannerText.Text = EVENT_HINT[pick.id] or ""
+	if pick.id == "convoy" and state.convoy and state.convoy.active then
+		refs.bannerText.Text = convoyLine(state.convoy)
+		refs.bannerTitle.TextColor3 = if (state.convoy.alert or 0) >= 2 then Theme.Alarm else Theme.Warn
+	else
+		refs.bannerText.Text = EVENT_HINT[pick.id] or ""
+		refs.bannerTitle.TextColor3 = Theme.Warn
+	end
 end
 
 local function setJail(j)
@@ -477,6 +500,16 @@ function HudController.init()
 	end)
 	Net.event("Jail").OnClientEvent:Connect(setJail)
 	Net.event("WorldEvent").OnClientEvent:Connect(setWorldEvent)
+	Net.event("ConvoyState").OnClientEvent:Connect(function(c)
+		if type(c) ~= "table" then
+			return
+		end
+		local wasBreached = state.convoy and state.convoy.cargo == "loose"
+		state.convoy = if c.active then c else nil
+		if c.active and c.cargo == "loose" and not wasBreached then
+			HudController.flash(Theme.Gold)
+		end
+	end)
 	Net.event("HideoutState").OnClientEvent:Connect(function(h)
 		refs.stash.Text = if (h.stash or 0) > 0 then string.format("stash %s AT RISK · tier %d", fmt(h.stash or 0), h.tier or 0) else string.format("stash 0 · tier %d", h.tier or 0)
 		refs.stash.TextColor3 = if (h.stash or 0) > 0 then Theme.Warn else Theme.Accent
@@ -526,6 +559,9 @@ function HudController.applyBootstrap(b)
 	refs.cashNote.TextColor3 = if b.saveable then Theme.Muted else Theme.Warn
 	if b.crew then
 		setCrew(b.crew)
+	end
+	if type(b.convoy) == "table" and b.convoy.active then
+		state.convoy = b.convoy
 	end
 	if type(b.worldEvents) == "table" then
 		for _, e in pairs(b.worldEvents) do

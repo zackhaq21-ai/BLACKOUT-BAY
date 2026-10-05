@@ -15,7 +15,26 @@ local SHAPES = {
 	Courier = { length = 16, width = 7, cabin = { 6.6, 4.5, 12 }, color = Palette.PaleStone, chassisY = 1.1 },
 	Commuter = { length = 13, width = 6.2, cabin = { 5.4, 2.4, 7 }, color = Palette.WarmStone, chassisY = 1.1 },
 	Cruiser = { length = 14, width = 6.4, cabin = { 5.6, 2.3, 6.5 }, color = Palette.Police, chassisY = 1.1 },
+	Armored = { length = 18, width = 7.6, cabin = { 7.2, 3, 5.5 }, color = Palette.Industrial, chassisY = 1.3, cabinZ = -5 },
+	Escort = { length = 14, width = 6.4, cabin = { 5.6, 2.3, 6.5 }, color = Palette.DarkAsphalt, chassisY = 1.1 },
 }
+
+local function decal(part: BasePart, face: Enum.NormalId, text: string, color: Color3)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 20
+	local tl = Instance.new("TextLabel")
+	tl.Size = UDim2.fromScale(1, 1)
+	tl.BackgroundTransparency = 1
+	tl.Text = text
+	tl.TextScaled = true
+	tl.Font = Enum.Font.GothamBold
+	tl.TextColor3 = color
+	tl.Parent = gui
+	gui.Parent = part
+	return gui
+end
 
 local function mk(parent, name, size, cf, color, material, props)
 	local p = Instance.new("Part")
@@ -73,7 +92,7 @@ function VehicleBuilder.build(parent: Instance, kind: string, cf: CFrame, id: st
 	body.CustomPhysicalProperties = PhysicalProperties.new(0.3, 0.3, 0.2)
 	weld(chassis, body)
 	local cab = shape.cabin
-	local cabin = mk(model, "Cabin", Vector3.new(cab[1], cab[2], cab[3]), chassis.CFrame * CFrame.new(0, 2.2 + cab[2] / 2, if kind == "Courier" then 1.5 else -0.5), shape.color, Enum.Material.SmoothPlastic)
+	local cabin = mk(model, "Cabin", Vector3.new(cab[1], cab[2], cab[3]), chassis.CFrame * CFrame.new(0, 2.2 + cab[2] / 2, shape.cabinZ or (if kind == "Courier" then 1.5 else -0.5)), shape.color, Enum.Material.SmoothPlastic)
 	cabin.CustomPhysicalProperties = PhysicalProperties.new(0.2, 0.3, 0.2)
 	weld(chassis, cabin)
 	local glass = mk(model, "Glass", Vector3.new(cab[1] - 0.4, cab[2] - 0.6, cab[3] + 0.2), cabin.CFrame * CFrame.new(0, 0.1, 0), Palette.Glass, Enum.Material.Glass, { Transparency = 0.4, CanCollide = false, Reflectance = 0.2 })
@@ -196,6 +215,55 @@ function VehicleBuilder.build(parent: Instance, kind: string, cf: CFrame, id: st
 		ps.Anchored = false
 		ps.Parent = model
 		weld(chassis, ps)
+	end
+
+	-- Engine bed hook (looping; silent until Config.Audio.Engines[kind] is filled with an owned asset)
+	local engine = Instance.new("Sound")
+	engine.Name = "Engine"
+	engine.SoundId = (Config.Audio.Engines :: any)[kind] or ""
+	engine.Looped = true
+	engine.Volume = 0.45
+	engine.RollOffMaxDistance = 140
+	engine.Parent = chassis
+
+	if kind == "Armored" then
+		-- Heavy identity: steel cargo box, armour plates, rear doors with an indicator, amber security strobes
+		local box = mk(model, "CargoBox", Vector3.new(Wd - 0.6, 4.4, 9.5), chassis.CFrame * CFrame.new(0, 2.2 + 2.2, 2.6), Palette.Industrial, Enum.Material.DiamondPlate)
+		box.CustomPhysicalProperties = PhysicalProperties.new(0.4, 0.3, 0.2)
+		weld(chassis, box)
+		decal(box, Enum.NormalId.Left, "HARBOUR SECURITY", Palette.SecurityAmber)
+		decal(box, Enum.NormalId.Right, "HARBOUR SECURITY", Palette.SecurityAmber)
+		for _, side in ipairs({ -1, 1 }) do
+			local plate = mk(model, "ArmorPlate", Vector3.new(0.3, 1.6, L - 2), chassis.CFrame * CFrame.new(side * (Wd / 2 - 0.05), 1.6, 0), Palette.DarkAsphalt, Enum.Material.Metal, { CanCollide = false })
+			plate.CustomPhysicalProperties = PhysicalProperties.new(0.2, 0.3, 0.2)
+			weld(chassis, plate)
+			local strobe = mk(model, "SecurityLight", Vector3.new(0.8, 0.5, 0.8), cabin.CFrame * CFrame.new(side * 2.4, cab[2] / 2 + 0.25, 0), Palette.SecurityAmber, Enum.Material.Neon, { CanCollide = false })
+			strobe.CustomPhysicalProperties = PhysicalProperties.new(0.1, 0.3, 0.2)
+			local pl = Instance.new("PointLight")
+			pl.Color = Palette.SecurityAmber
+			pl.Brightness = 0
+			pl.Range = 36
+			pl.Parent = strobe
+			weld(chassis, strobe)
+		end
+		local doors = mk(model, "CargoDoors", Vector3.new(Wd - 1.4, 3.8, 0.5), chassis.CFrame * CFrame.new(0, 2.2 + 2, L / 2 - 0.2), Palette.DarkAsphalt, Enum.Material.Metal)
+		doors.CustomPhysicalProperties = PhysicalProperties.new(0.2, 0.3, 0.2)
+		weld(chassis, doors)
+		decal(doors, Enum.NormalId.Back, "SECURED CARGO", Palette.PaleStone)
+		local lamp = mk(model, "CargoLight", Vector3.new(Wd - 2, 0.3, 0.3), chassis.CFrame * CFrame.new(0, 2.2 + 4.3, L / 2 - 0.4), Palette.SeaGlass, Enum.Material.Neon, { CanCollide = false })
+		lamp.CustomPhysicalProperties = PhysicalProperties.new(0.1, 0.3, 0.2)
+		weld(chassis, lamp)
+	elseif kind == "Escort" then
+		local bar = mk(model, "LightBar", Vector3.new(4, 0.5, 1), cabin.CFrame * CFrame.new(0, cab[2] / 2 + 0.25, 0), Palette.SecurityAmber, Enum.Material.Neon, { CanCollide = false })
+		bar.CustomPhysicalProperties = PhysicalProperties.new(0.1, 0.3, 0.2)
+		local pl = Instance.new("PointLight")
+		pl.Color = Palette.SecurityAmber
+		pl.Brightness = 0
+		pl.Range = 40
+		pl.Parent = bar
+		weld(chassis, bar)
+		decal(body, Enum.NormalId.Right, "SECURITY", Palette.SecurityAmber)
+		decal(body, Enum.NormalId.Left, "SECURITY", Palette.SecurityAmber)
 	end
 
 	-- Trunk (prompt target) at the rear

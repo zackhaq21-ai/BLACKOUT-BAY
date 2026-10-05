@@ -214,6 +214,69 @@ local ok, result = xpcall(function()
 	assert(hook:Invoke("arrest", leader), "Arrest failed")
 	assert(hook:Invoke("release", leader), "Release failed")
 
+	-- 6b. Armored convoy: start (test shortcut skips the 40 s anticipation), three server-driven vehicles move;
+	-- a breach while moving is refused; halted, the leader's server-timed hold mints the crates exactly once;
+	-- a second breach is refused; one crate is extracted to the pier and paid once; cleanup; cooldown.
+	step("convoy")
+	assert(hook:Invoke("convoyStart", 1), "Convoy did not start")
+	waitFor(function()
+		return hook:Invoke("convoyVehicles") == 3
+	end, 8, "Convoy vehicles did not spawn")
+	local cs0 = hook:Invoke("convoyState")
+	assert(cs0.active and cs0.cargo == "secured" and cs0.crates == 0, "Convoy state wrong at start: " .. HttpService:JSONEncode(cs0))
+	task.wait(4)
+	local cs1 = hook:Invoke("convoyState")
+	local travelled = math.abs(cs1.x - cs0.x) + math.abs(cs1.z - cs0.z)
+	print("GLASSHOUSE_ENGINE_CONVOY_MOVE", args.count, "studs", travelled)
+	assert(travelled > 8, "Convoy did not move (" .. travelled .. " studs)")
+	local doors = hook:Invoke("convoyDoors")
+	assert(doors, "Cargo doors missing")
+	move(leader, doors.Position - doors.CFrame.LookVector * 3) -- behind the rear doors
+	assert(not hook:Invoke("breach", leader), "Breach accepted while the transport was moving")
+	hook:Invoke("convoyHalt", true)
+	task.wait(2.5)
+	move(leader, doors.Position - doors.CFrame.LookVector * 3)
+	hook:Invoke("trigger", leader, doors, "ConvoyBreach")
+	task.wait(0.3)
+	assert(#hook:Invoke("convoyCrates").ids == 0, "Forged trigger without a hold opened the cargo")
+	local heatBeforeConvoy = hook:Invoke("heat", leader)
+	assert(hook:Invoke("breach", leader), "Breach hold did not open the cargo")
+	local crates = hook:Invoke("convoyCrates")
+	assert(#crates.ids == 3 and crates.total == 6000, "Cargo minted wrong: " .. HttpService:JSONEncode(crates))
+	assert(hook:Invoke("heat", leader) > heatBeforeConvoy, "Breacher took no heat")
+	assert(not hook:Invoke("breach", leader), "Second breach accepted")
+	assert(#hook:Invoke("convoyCrates").ids == 3, "Crates duplicated")
+	-- extraction: one crate to the pier, paid exactly once across the crew
+	local function crewStash()
+		local sum = 0
+		for _, p in ipairs(list) do
+			sum += hook:Invoke("stash", p).stash
+		end
+		return sum
+	end
+	local stashBeforeCrate = crewStash()
+	local crateVisual = hook:Invoke("lootVisual", crates.ids[1])
+	assert(crateVisual, "Crate visual missing")
+	move(leader, crateVisual.PrimaryPart.Position + Vector3.new(0, 2, 3))
+	trigger(leader, crateVisual.PrimaryPart, "LootPickup")
+	assert(#hook:Invoke("carried", leader) == 1, "Could not pick up the crate")
+	move(leader, unit.deliveryTable.Position + Vector3.new(0, 3, 4))
+	trigger(leader, unit.deliveryTable, "Deliver")
+	assert(#hook:Invoke("carried", leader) == 0, "Crate delivery failed")
+	hook:Invoke("closeJob", leader)
+	waitFor(function()
+		local gain = crewStash() - stashBeforeCrate
+		return gain >= 2000 - #list and gain <= 2000
+	end, 10, "Crate payout wrong: " .. tostring(crewStash() - stashBeforeCrate))
+	assert(hook:Invoke("convoyEnd"), "Convoy did not end")
+	waitFor(function()
+		return hook:Invoke("convoyVehicles") == 0
+	end, 5, "Convoy vehicles left behind")
+	assert(hook:Invoke("lootVisual", crates.ids[2]) == nil, "Loose crates were not recovered on cleanup")
+	assert(not hook:Invoke("convoyStart", 1), "Cooldown did not refuse a second convoy")
+	hook:Invoke("clearHeat", leader)
+	print("GLASSHOUSE_ENGINE_CONVOY_SUCCESS", args.count)
+
 	local raidResult = nil
 	if args.count >= 2 then
 		-- 7. Partner leaves, raids the leader's live pier: full stash exposed, bundles minted once, lock + cooldown
