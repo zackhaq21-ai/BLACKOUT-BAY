@@ -13,7 +13,8 @@ local Comms = require(script.Parent.Comms)
 
 local BountyService = { ctx = nil :: any }
 local BC = Config.Bounty
-local takedowns = {} -- hunter -> { target, progress }
+local takedowns = {} -- hunter -> { target, progress } (server-timed hold)
+local claiming = {} -- hunter -> true while a claim transform is in flight
 local stunnedUntil = {} -- Player -> os.clock()
 
 local function unix()
@@ -53,7 +54,11 @@ end
 
 function BountyService.place(player: Player, targetUserId: number, amount: number)
 	local S = BountyService.ctx.services
-	if type(targetUserId) ~= "number" or type(amount) ~= "number" then
+	if type(targetUserId) ~= "number" or targetUserId ~= targetUserId or targetUserId ~= math.floor(targetUserId) or targetUserId <= 0 then
+		return
+	end
+	if type(amount) ~= "number" or amount ~= amount or amount == math.huge or amount == -math.huge then
+		Comms.toast(player, "Enter a whole number.", "warn")
 		return
 	end
 	amount = math.floor(amount)
@@ -116,34 +121,103 @@ function BountyService.place(player: Player, targetUserId: number, amount: numbe
 	Comms.toastAll(string.format("WANTED: %s · bounty %d", targetName, total), "alarm")
 end
 
--- Takedown: a hunter holds the prompt on a wanted player who is on foot. Server-timed like cuffing.
-function BountyService.onTakedown(hunter: Player, prompt: ProximityPrompt)
+-- Server-side eligibility for a takedown attempt. Returns (target, reason). Checked at hold start, every
+-- tick of the hold, and again at completion; the client decides nothing.
+local function eligible(hunter: Player, prompt: ProximityPrompt): (Player?, string?)
 	local S = BountyService.ctx.services
 	local targetUserId = tonumber(prompt:GetAttribute("TargetUserId"))
 	local target = targetUserId and Players:GetPlayerByUserId(targetUserId)
-	if not target or target == hunter then
-		return
+	if not target then
+		return nil, "target gone"
+	end
+	if target == hunter then
+		return nil, "that's you"
 	end
 	if S.Crew.sameCrew(hunter, target) then
-		Comms.toast(hunter, "Crewmates can't claim each other.", "warn")
-		return
+		return nil, "crewmates can't claim each other"
 	end
-	if hunter:GetAttribute("Jailed") or (stunnedUntil[hunter] or 0) > os.clock() then
-		return
+	if hunter:GetAttribute("Jailed") or target:GetAttribute("Jailed") then
+		return nil, "not from a cell"
 	end
+	if (stunnedUntil[hunter] or 0) > os.clock() then
+		return nil, "you're down"
+	end
+	local hhum = hunter.Character and hunter.Character:FindFirstChildOfClass("Humanoid")
 	local thum = target.Character and target.Character:FindFirstChildOfClass("Humanoid")
-	if not thum or thum.Health <= 0 then
-		return
+	if not hhum or hhum.Health <= 0 or not thum or thum.Health <= 0 then
+		return nil, "not standing"
 	end
 	if thum.SeatPart then
-		Comms.toast(hunter, "They're in a vehicle. Takedowns only work on foot.", "warn")
+		return nil, "they're in a vehicle: takedowns only work on foot"
+	end
+	if hhum.SeatPart then
+		return nil, "get out of the vehicle first"
+	end
+	local hroot = (hunter.Character :: Model):FindFirstChild("HumanoidRootPart")
+	local troot = (target.Character :: Model):FindFirstChild("HumanoidRootPart")
+	if not hroot or not troot or not hroot:IsA("BasePart") or not troot:IsA("BasePart") or (hroot.Position - troot.Position).Magnitude > BC.TakedownRange + 1 then
+		return nil, "too far"
+	end
+	if (tonumber(target:GetAttribute("Bounty")) or 0) <= 0 then
+		return nil, "no bounty"
+	end
+	return target, nil
+end
+
+-- Hold lifecycle (server-timed, like the safe crack): progress only accumulates while eligible.
+function BountyService.onTakedownHoldBegin(hunter: Player, prompt: ProximityPrompt)
+	local target, why = eligible(hunter, prompt)
+	if not target then
+		if why and why ~= "no bounty" then
+			Comms.toast(hunter, "No takedown: " .. why .. ".", "warn")
+		end
 		return
 	end
-	local hroot = hunter.Character and hunter.Character:FindFirstChild("HumanoidRootPart")
+	takedowns[hunter] = { target = target, progress = 0, prompt = prompt }
+end
+
+function BountyService.onTakedownHold(hunter: Player, prompt: ProximityPrompt, dt: number)
+	local td = takedowns[hunter]
+	if not td or td.prompt ~= prompt then
+		return
+	end
+	local target = eligible(hunter, prompt)
+	if not target or target ~= td.target then
+		takedowns[hunter] = nil
+		Comms.hud(hunter, { cuffing = 0 })
+		return
+	end
+	td.progress += dt
+	Comms.hud(hunter, { cuffing = math.clamp(td.progress / BC.TakedownSeconds, 0, 1) })
+	if td.progress >= BC.TakedownSeconds then
+		BountyService.completeTakedown(hunter, prompt)
+	end
+end
+
+-- Prompt Triggered (client hold finished). Accepted only if the server clock agrees, within a small tolerance.
+function BountyService.onTakedown(hunter: Player, prompt: ProximityPrompt)
+	local td = takedowns[hunter]
+	if not td or td.prompt ~= prompt or td.progress < BC.TakedownSeconds - 0.35 then
+		return
+	end
+	BountyService.completeTakedown(hunter, prompt)
+end
+
+function BountyService.completeTakedown(hunter: Player, prompt: ProximityPrompt)
+	local S = BountyService.ctx.services
+	if claiming[hunter] then
+		return
+	end
+	takedowns[hunter] = nil
+	Comms.hud(hunter, { cuffing = 0 })
+	local target = eligible(hunter, prompt)
+	if not target then
+		return
+	end
+	local targetUserId = target.UserId
 	local troot = target.Character:FindFirstChild("HumanoidRootPart")
-	if not hroot or not troot or (hroot.Position - troot.Position).Magnitude > BC.TakedownBreakRange then
-		return
-	end
+	local thum = target.Character:FindFirstChildOfClass("Humanoid")
+	claiming[hunter] = true
 	-- Atomic claim on the target's record; the second of two simultaneous hunters gets "no bounty".
 	local hunterKey = Comms.key(hunter)
 	local ok, result, rec = S.HideoutStore.apply(targetUserId, function(r)
@@ -154,6 +228,7 @@ function BountyService.onTakedown(hunter: Player, prompt: ProximityPrompt)
 		r.bounty = b
 		return r, payout
 	end)
+	claiming[hunter] = nil
 	if not ok then
 		Comms.toast(hunter, "No claim: " .. tostring(result), "warn")
 		BountyService.syncPrompt(target, BountyRecord.total(rec and rec.bounty))
@@ -171,6 +246,7 @@ function BountyService.onTakedown(hunter: Player, prompt: ProximityPrompt)
 	local dropped = S.Loot.dropAll(target, "taken down")
 	BountyService.syncPrompt(target, 0)
 	S.Hideout.depositStash(hunter, payout, "bounty on " .. Comms.name(target))
+	S.Hideout.pushState(target)
 	local where = Blueprint.nearestLandmark(troot.Position.X, troot.Position.Z)
 	Comms.cue(hunter, "Payout")
 	Comms.cue(target, "Arrest")
@@ -226,7 +302,14 @@ function BountyService.start()
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		takedowns[player] = nil
+		claiming[player] = nil
 		stunnedUntil[player] = nil
+		for hunter, td in pairs(takedowns) do
+			if td.target == player then
+				takedowns[hunter] = nil
+				Comms.hud(hunter, { cuffing = 0 })
+			end
+		end
 	end)
 end
 

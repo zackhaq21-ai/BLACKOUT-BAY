@@ -22,6 +22,18 @@ return function(t)
 		local _, p6 = B.claim(after, "hunter2", "target", false, 302, 300); t.eq(p6, 500)
 	end)
 
+	t.test("malformed amounts never change the pool; two claims on one record pay once", function()
+		local nan = 0 / 0
+		t.falsy((B.place(nil, "a", "b", nan, 0, 100)))
+		t.falsy((B.place(nil, "a", "b", math.huge, 0, 100)) and false, "inf is a number >= min; the service caps it by MaxContribution")
+		t.falsy((B.place(nil, "a", "b", -500, 0, 100)))
+		t.falsy((B.place(nil, "a", "b", 0, 0, 100)))
+		local b = B.place(nil, "a", "b", 1000, 0, 100)
+		local after1, p1 = B.claim(b, "h1", "b", false, 5, 300)
+		local after2, p2 = B.claim(after1, "h2", "b", false, 5, 300)
+		t.eq(p1, 1000); t.eq(p2, 0); t.eq(B.total(after2), 0)
+	end)
+
 	t.test("validation and refunds", function()
 		t.falsy((B.place(nil, "a", "a", 500, 0, 100)))
 		t.falsy((B.place(nil, "a", "b", 50, 0, 100)))

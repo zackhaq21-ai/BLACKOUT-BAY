@@ -140,6 +140,19 @@ hook.OnInvoke = function(action, a, b, c)
 		end
 		local state = S.Raid.unitState(raid.unitId)
 		return { active = raid.active, cracked = raid.cracked, stolen = raid.stolen, retained = raid.retained, unitId = raid.unitId, safe = state and state.refs.safe or nil, pierDoor = state and state.refs.pierDoor or nil, breaker = state and state.refs.breaker or nil, unitModel = raid.unit.model, bundles = raid.bundles }
+	elseif action == "takedown" then
+		-- a = hunter, b = target root part: runs the server-timed hold exactly as PromptButtonHoldBegan/hold would
+		local prompt = b:FindFirstChild("TakedownPrompt")
+		if not prompt then
+			return false, "no prompt"
+		end
+		S.Bounty.onTakedownHoldBegin(a, prompt)
+		local t0 = os.clock()
+		while os.clock() - t0 < 3 do
+			task.wait(0.25)
+			S.Bounty.onTakedownHold(a, prompt, 0.25)
+		end
+		return true
 	elseif action == "grantStash" then
 		return S.Hideout.depositStash(a, b, "engine test grant")
 	elseif action == "placeBounty" then

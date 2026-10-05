@@ -90,6 +90,7 @@ function InteractionService.start()
 		S.Security.onDrillHold(player, dt)
 	end })
 	InteractionService.registerHold("CaseCut", { hold = S.Security.onCaseCutHold })
+	InteractionService.registerHold("Takedown", { begin = S.Bounty.onTakedownHoldBegin, hold = S.Bounty.onTakedownHold })
 
 	ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
 		if not allowed(player) then
@@ -134,6 +135,10 @@ function InteractionService.start()
 		if h and h.prompt == prompt then
 			task.cancel(h.thread)
 			holding[player] = nil
+			local spec = h.tag and holdHandlers[h.tag]
+			if spec and spec.ended then
+				spec.ended(player, prompt)
+			end
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)

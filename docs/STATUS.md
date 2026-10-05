@@ -10,7 +10,7 @@ Adds in-world bounties on top of fake bags, recovery and raids.
 - `BountyService`: debit-then-credit placement with refund on failure, takedown prompt on wanted players (2 s hold, 7 studs, on foot only), stun + bag drop, payout to the hunter's stash, logs and notices; Wanted tab with amount box; "Put 500 on <raider>" on raid reports; nameplates show bounties; engine scenario for 3+ players (contributor refused, hunter paid exactly once).
 
 ### Verification
-`tools/check.sh`: type check 0 errors, lint 0 warnings, 58/58 logic tests, both places build. Studio scenarios written, not run (no Studio here).
+`tools/check.sh`: type check 0 errors, lint 0 warnings, 59/59 logic tests, both places build. Studio scenarios written, not run (no Studio here). Owner review (2026-10-05): bounties conditionally accepted; merge HELD until `tools\verify-engine.ps1 -Players 1,3,5` passes on the prepared PC and the live checklist in the review (funding, anti-exploit, concurrent claim, down/bag, crews, disconnects, police, UI, regression) is observed. Takedown hold is now server-timed; forged early triggers, seated hunters, jailed parties and out-of-range attempts are refused server-side.
 
 ### Not implemented (from the full vision)
 Player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; district blackouts; convoys; weapons/combat beyond takedowns; live purchases; sound assets; custom art; performance profiling.
