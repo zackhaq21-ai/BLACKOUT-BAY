@@ -248,7 +248,47 @@ function VehicleService.vehicleOfPlayer(player: Player)
 	return id and vehicles[id] or nil
 end
 
+-- Light states everyone can see: headlights while someone drives, brake lights when braking or lifting off.
+local VehicleFeel = require(ReplicatedStorage.Shared.Core.VehicleFeel)
+local function tickLights()
+	for _, rec in pairs(vehicles) do
+		local model = rec.model
+		if not model.Parent or model:GetAttribute("Disabled") then
+			continue
+		end
+		local chassis = rec.chassis
+		local moving = chassis.AssemblyLinearVelocity.Magnitude > 1
+		local driven = rec.driver ~= nil or rec.npc
+		local throttle = if rec.seat then rec.seat.ThrottleFloat else 0
+		local forwardVel = chassis.AssemblyLinearVelocity:Dot(chassis.CFrame.LookVector)
+		local braking = driven and VehicleFeel.brakeLights(Config.Presentation.Vehicle, if rec.npc then 0 else throttle, forwardVel)
+		if rec.lightsOn ~= driven or rec.braking ~= braking then
+			rec.lightsOn = driven
+			rec.braking = braking
+			for _, d in ipairs(model:GetChildren()) do
+				if d.Name == "Headlight" then
+					d.Material = if driven then Enum.Material.Neon else Enum.Material.SmoothPlastic
+					local sl = d:FindFirstChildOfClass("SpotLight")
+					if sl then
+						sl.Enabled = driven
+					end
+				elseif d.Name == "Taillight" then
+					d.Material = if driven then Enum.Material.Neon else Enum.Material.SmoothPlastic
+					d.Color = if braking then Color3.fromRGB(255, 70, 50) else Color3.fromRGB(170, 40, 30)
+				end
+			end
+		end
+		local _ = moving
+	end
+end
+
 function VehicleService.start()
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			tickLights()
+		end
+	end)
 	for _, spot in ipairs(Blueprint.StreetCars) do
 		VehicleService.spawn("Commuter", CFrame.new(spot.x, 3, spot.z) * CFrame.Angles(0, math.rad(spot.rot), 0), { streetSpot = spot.name })
 	end

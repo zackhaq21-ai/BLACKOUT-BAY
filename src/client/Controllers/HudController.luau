@@ -14,7 +14,7 @@ local HudController = {}
 local player = Players.LocalPlayer
 local gui
 local refs: { [string]: any } = {}
-local state = { worldEvents = {}, convoy = nil, cash = 0, crew = nil, mission = nil, carry = nil, security = 0, heat = 0, detection = 0, detectionAt = 0, detectionSource = nil, detectionPos = nil, keycards = {}, cuffing = 0, jailed = false }
+local state = { worldEvents = {}, convoy = nil, stash = 0, cash = 0, crew = nil, mission = nil, carry = nil, security = 0, heat = 0, detection = 0, detectionAt = 0, detectionSource = nil, detectionPos = nil, keycards = {}, cuffing = 0, jailed = false }
 local logOpen = false
 
 local function fmt(n: number): string
@@ -224,6 +224,12 @@ function HudController.toast(text: string, kind: string?)
 	Make.padding(f, 8)
 	local t = Make.label(f, "Text", text, Theme.Body, if kind == "alarm" then Theme.Alarm else Theme.Text, kind == "alarm")
 	t.TextXAlignment = Enum.TextXAlignment.Center
+	-- slide in from above and fade up; alarms also get the stroke to breathe once
+	f.BackgroundTransparency = 1
+	t.TextTransparency = 1
+	f.Position = UDim2.new(0, 0, 0, -12)
+	TweenService:Create(f, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0.1, Position = UDim2.new() }):Play()
+	TweenService:Create(t, TweenInfo.new(0.22), { TextTransparency = 0 }):Play()
 	local life = if kind == "alarm" then 7 else 5
 	task.delay(life, function()
 		TweenService:Create(f, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
@@ -370,9 +376,18 @@ local function updateBanner()
 		end
 	end
 	if not pick then
-		refs.banner.Visible = false
+		if refs.banner.Visible and not refs.bannerHiding then
+			refs.bannerHiding = true
+			TweenService:Create(refs.banner, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
+			task.delay(0.36, function()
+				refs.banner.Visible = false
+				refs.banner.BackgroundTransparency = 0.1
+				refs.bannerHiding = false
+			end)
+		end
 		return
 	end
+	refs.bannerHiding = false
 	local left = math.max(0, (pick.endsAt or 0) - workspace:GetServerTimeNow())
 	refs.banner.Visible = true
 	refs.bannerTitle.Text = string.format("%s · %d:%02d", tostring(pick.label or pick.id), math.floor(left / 60), math.floor(left % 60))
@@ -458,8 +473,12 @@ function HudController.init()
 	end)
 	Net.event("HudState").OnClientEvent:Connect(function(d)
 		if d.cash ~= nil then
+			local delta = d.cash - (state.cash or 0)
 			state.cash = d.cash
 			refs.cash.Text = fmt(d.cash)
+			if delta ~= 0 then
+				Make.pulse(refs.cash, if delta > 0 then Theme.Good else Theme.Alarm)
+			end
 		end
 		if d.saveable ~= nil then
 			refs.cashNote.Text = if d.saveable then "saved" else "NOT SAVING: " .. tostring(d.saveReason or "")
@@ -511,6 +530,11 @@ function HudController.init()
 		end
 	end)
 	Net.event("HideoutState").OnClientEvent:Connect(function(h)
+		local before = state.stash or 0
+		state.stash = h.stash or 0
+		if state.stash ~= before then
+			Make.pulse(refs.stash, if state.stash > before then Theme.Good else Theme.Alarm)
+		end
 		refs.stash.Text = if (h.stash or 0) > 0 then string.format("stash %s AT RISK · tier %d", fmt(h.stash or 0), h.tier or 0) else string.format("stash 0 · tier %d", h.tier or 0)
 		refs.stash.TextColor3 = if (h.stash or 0) > 0 then Theme.Warn else Theme.Accent
 	end)

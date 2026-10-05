@@ -85,9 +85,20 @@ end
 local gridDown = false
 local visionScale = 1
 
+local visionFactors: { [string]: number } = {}
+
+function PoliceService.setVisionFactor(source: string, scale: number)
+	visionFactors[source] = math.clamp(if scale ~= scale then 1 else scale, 0.25, 1)
+	local product = 1
+	for _, f in pairs(visionFactors) do
+		product *= f
+	end
+	visionScale = math.clamp(product, 0.25, 1)
+end
+
 function PoliceService.setGridDown(down: boolean, scale: number)
 	gridDown = down
-	visionScale = if down then math.clamp(scale, 0.25, 1) else 1
+	PoliceService.setVisionFactor("blackout", if down then scale else 1)
 end
 
 function PoliceService.visionScale(): number

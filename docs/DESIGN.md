@@ -103,6 +103,9 @@ A Harbour Security convoy (escort, armored transport, escort) crosses the island
 - **Cleanup.** Expiry, delivery, extraction, cancel and shutdown run one idempotent teardown: vehicles destroyed, loose crates recovered, carried crates left in play, state replicated as inactive.
 - **Open tuning.** Checkpoint windows, crate values and the heat numbers are provisional until Studio play.
 
+## Presentation layer (premium polish pass, review branch `claude/review-m10-polish`)
+Gameplay authority did not move. The client gained a presentation layer that reads replicated state and never writes it: `CameraController` (FOV by state, landing dip), `MovementController` (landing and sprint cues), `EnvironmentController` (weather look, blackout moonlight, lightning, rain, wet roads, graphics tiers), `Vfx` (pooled bursts), `AudioController` (groups, positional cues, beds, interior mix), and a refit `VehicleController` on shared `VehicleFeel` maths also used by the NPC drivers. The server gained `EnvironmentService` (weather state, replicated; NPC vision factor composed with the blackout's) and visible vehicle light states. Pure maths for all of it lives in `Core/` with tests. Rules: no shake, no strobe, no black frames, no permanent markers, one source for every constant (`Config.Presentation`, `Config.Vehicles.WheelRadius`).
+
 ## Corrections carried over from the prototype thread (docs/ROADMAP.md in `prototype/aurora-v0`)
 - The rare car is owned by the **individual thief**, never automatically by the assisting crew; ownership survives crew changes for the rest of the weekly cycle. `RareCarCycle` already models the individual owner.
 - A crew member may **leak a hideout**, enabling stash raids and a comeback. (The raid board currently lists hideouts by visible wealth; leaking as a deliberate act is a later milestone.)

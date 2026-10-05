@@ -233,7 +233,7 @@ local function completeBreach(player: Player)
 	ev.phase = "Breached"
 	escalate("breached", player)
 	setCargoLight(Palette.SecurityRed)
-	Comms.cueAll("ConvoyBreach")
+	Comms.cueAt("ConvoyBreach", doors.Position, 3000)
 	Comms.toastAll(string.format("The convoy has been breached near %s. %d crates are loose. Harbour Security will recover anything left behind.", landmarkOf(doors.Position), #ids), "alarm")
 	Comms.toast(player, string.format("Doors open: %d crates. Get them to your pier. Police heat +%d.", #ids, CC.AttackHeat), "good")
 	pushState()

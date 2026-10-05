@@ -105,6 +105,7 @@ Config.Vehicles = {
 	-- Convoy vehicles (NPC-driven, server-owned). The transport is deliberately heavy and slow to turn.
 	Armored = { label = "Armored Transport", maxSpeed = 44, accel = 16, brake = 70, steer = 0.35, seats = 2, trunk = 0, health = 600, mass = 3.2 },
 	Escort = { label = "Security Escort", maxSpeed = 62, accel = 28, brake = 60, steer = 0.55, seats = 2, trunk = 0, health = 240, mass = 1.3 },
+	WheelRadius = 1.4, -- one source for the builder, the seated client and every NPC driver
 	RamDamage = 25, -- vehicle health lost when a cruiser rams at pursuit speed
 	DisabledSmokeSeconds = 120,
 	RespawnSeconds = 45,
@@ -148,10 +149,21 @@ Config.Audio = {
 	Cues = {
 		Pickup = "", Drop = "", Deliver = "", Alarm = "", Suspicious = "", Lockdown = "",
 		Smash = "", Drill = "", Keypad = "", Unlock = "", Siren = "", Payout = "", Arrest = "", PowerCut = "",
-		ConvoyAnnounce = "", ConvoyAlert = "", ConvoyBreach = "", ConvoyLost = "", ConvoyDelivered = "", ConvoyRadio = "",
+		ConvoyAnnounce = "", ConvoyAlert = "", ConvoyBreach = "", ConvoyLost = "", ConvoyDelivered = "", ConvoyRadio = "", LaserTrip = "",
 	},
 	-- Looping engine beds per vehicle kind (blank = silent hook; the Sound instance still exists on the chassis)
-	Engines = { Armored = "", Escort = "" },
+	Engines = { Kestrel = "", Courier = "", Commuter = "", Cruiser = "", Armored = "", Escort = "" },
+	-- Looping ambience beds (blank until licensed). Grouped: Ambience/Weather/Interiors.
+	Ambience = { City = "", Harbour = "", Interior = "", Rain = "", Storm = "", Wind = "" },
+	-- Local feel cues (client-only, never gameplay)
+	Feel = { Land = "", SprintStart = "", Footstep = "" },
+	-- Sound group per cue (mixing). Cues not listed fall into "Interaction".
+	Groups = {
+		Alarm = "Events", Lockdown = "Events", Suspicious = "Events", PowerCut = "Events", Smash = "Interaction", Drill = "Interaction",
+		Keypad = "UI", Unlock = "Interaction", Siren = "Police", Payout = "UI", Arrest = "Police", Pickup = "Interaction", Drop = "Interaction",
+		Deliver = "Interaction", ConvoyAnnounce = "Events", ConvoyAlert = "Events", ConvoyBreach = "Events", ConvoyLost = "Events",
+		ConvoyDelivered = "Events", ConvoyRadio = "Events", LaserTrip = "Interaction",
+	},
 }
 
 -- Hideout stash and raids. OWNER DECISION (2026-10-04): high stakes. A successful raid exposes the FULL earned
@@ -239,6 +251,54 @@ Config.WorldEvents = {
 		AbandonSeconds = 150, -- loose crates nobody touches are recovered by Harbour Security
 		MinSpawnDistanceFromPlayers = 90,
 		FormationGap = 22,
+	},
+}
+
+-- Presentation: feel, camera, weather and graphics tiers. Client-side only; never gameplay authority.
+Config.Presentation = {
+	Camera = {
+		BaseFov = 70,
+		SprintFov = 76, -- reached at full sprint speed
+		SneakFov = 66,
+		DownedFov = 62,
+		VehicleFovMax = 82, -- at the vehicle's top speed
+		LandingDipMax = 1.6, -- studs of camera drop on a hard landing
+		LandingDipMinFall = 18, -- fall speed (studs/s) where the dip starts
+		LandingDipMaxFall = 70,
+		FovSmoothing = 6, -- per-second exponential rate (higher = snappier)
+		DipRecover = 9,
+		SpeedFovStart = 0.35, -- fraction of top speed where the FOV starts to widen
+	},
+	Vehicle = {
+		SteerSpeedAtRest = 6, -- servo angular speed (rad/s) when parked
+		SteerSpeedAtSpeed = 2.5, -- at top speed: slower hands, no twitch
+		SteerLockMin = 0.4, -- fraction of full lock kept at top speed
+		LowSpeedTorqueBoost = 1.35, -- pulling away
+		HighSpeedTorqueFade = 0.55, -- torque fraction near top speed
+		CoastDrag = 4,
+		ReverseFraction = 0.4,
+		BrakeThreshold = 4, -- |forward speed| above which opposite throttle brakes instead of reversing
+		HeavyMass = 2.5, -- classes at or above this mass steer slower and roll less steer
+	},
+	Weather = {
+		States = { "Clear", "Overcast", "Rain", "Storm", "Fog" },
+		MinSeconds = 240,
+		MaxSeconds = 540,
+		BlendSeconds = 25, -- gradual transitions
+		Weights = { Clear = 5, Overcast = 3, Rain = 3, Storm = 1, Fog = 2 },
+		-- NPC sight factor per state (composes with the blackout factor)
+		Vision = { Clear = 1, Overcast = 1, Rain = 0.85, Storm = 0.7, Fog = 0.6 },
+		LightningMinGap = 6,
+		LightningMaxGap = 18,
+	},
+	Graphics = {
+		Tiers = { "Low", "Medium", "High", "Max" },
+		Default = "Auto", -- picks from the device: touch → Medium, gamepad/desktop → High
+		Bloom = { Low = 0, Medium = 0.25, High = 0.35, Max = 0.45 },
+		Particles = { Low = 0.3, Medium = 0.6, High = 1, Max = 1.4 }, -- rate multipliers
+		Shadows = { Low = false, Medium = true, High = true, Max = true },
+		DepthOfField = { Low = false, Medium = false, High = true, Max = true },
+		RainRate = { Low = 60, Medium = 160, High = 300, Max = 420 },
 	},
 }
 

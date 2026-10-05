@@ -10,7 +10,7 @@ local Palette = require(ReplicatedStorage.Shared.Palette)
 local CopBrain = {}
 CopBrain.__index = CopBrain
 
-local WHEEL_RADIUS = 1.4
+local WHEEL_RADIUS = Config.Vehicles.WheelRadius
 
 function CopBrain.new(ctx, rec, index: number, graph)
 	local self = setmetatable({}, CopBrain)

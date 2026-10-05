@@ -505,7 +505,7 @@ function RaidService.onBreaker(player: Player, prompt: ProximityPrompt)
 	raid.entry = raid.entry or "cut the shield breaker"
 	table.insert(raid.triggered, "shield breaker cut")
 	Comms.toastMany(raid.crew.members, "Shield down. The bay is open.", "good")
-	Comms.cue(player, "PowerCut")
+	Comms.cueAt("PowerCut", (prompt.Parent :: BasePart).Position)
 	triggerAlarm(raid, "breaker")
 	pushRaidState(raid)
 end
@@ -531,7 +531,7 @@ function RaidService.onPierDoor(player: Player, prompt: ProximityPrompt)
 	setDoor(state, true)
 	raid.entry = raid.entry or "cut through the pier door"
 	table.insert(raid.triggered, "pier door cut")
-	Comms.cue(player, "Unlock")
+	Comms.cueAt("Unlock", state.refs.pierDoor.Position)
 	triggerAlarm(raid, "pier door")
 	pushRaidState(raid)
 end
@@ -587,6 +587,7 @@ function RaidService.onLaserTouched(unitId: string, hit: BasePart)
 		return
 	end
 	laserDebounce[player] = t
+	Comms.cueAt("LaserTrip", hit.Position)
 	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.PlatformStand = true

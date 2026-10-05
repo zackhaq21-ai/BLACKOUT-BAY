@@ -1,13 +1,11 @@
 --!nonstrict
 -- Crew-triggered harbour blackout. A crew on a job cuts the grid at the Harbour Substation (server-timed hold):
--- street and building lights go out, the sky drops to moonlight (never black), emergency amber lights come on,
+-- street and building lights go out, the sky drops to moonlight on the client (never black), emergency amber lights come on,
 -- museum cameras die and the lockdown shutter lifts, hideout shields and lasers lose power, guards and police
 -- see less and cannot read plates. The saboteur takes heat. Anyone on foot can reset the grid early at the
 -- same cabinet. Duration and server cooldown are bounded by WorldEventRules; every check is server-side.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
-local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Palette = require(ReplicatedStorage.Shared.Palette)
 local BlackoutRules = require(ReplicatedStorage.Shared.Core.BlackoutRules)
@@ -27,10 +25,7 @@ local refs -- substation refs from IslandBuilder
 local prompts: { sabotage: ProximityPrompt?, reset: ProximityPrompt? } = {}
 local holds: { [Player]: { kind: string, prompt: ProximityPrompt, progress: number } } = {}
 local completing: { [Player]: boolean } = {}
-local lightingTween: Tween?
 
-local NORMAL = { Brightness = 2, OutdoorAmbient = Color3.fromRGB(78, 86, 108), Ambient = Color3.fromRGB(56, 60, 76), FogColor = Color3.fromRGB(92, 115, 140) } -- re-read from Lighting at start()
-local MOONLIT = { Brightness = 0.9, OutdoorAmbient = Color3.fromRGB(38, 46, 72), Ambient = Color3.fromRGB(26, 30, 46), FogColor = Color3.fromRGB(40, 52, 74) }
 
 -- Light inventory ------------------------------------------------------------------------------
 local KEEP = { Lighthouse = true, PoliceStation = true } -- own generators: the lighthouse sweeps on, the station stays lit
@@ -82,15 +77,6 @@ local function setGridLights(on: boolean)
 	end
 end
 
-local function setSky(down: boolean)
-	if lightingTween then
-		lightingTween:Cancel()
-	end
-	local tw = TweenService:Create(Lighting, TweenInfo.new(if down then 0.6 else 2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), if down then MOONLIT else NORMAL)
-	lightingTween = tw
-	tw:Play()
-end
-
 local function setPrompts()
 	local canStart, why = BlackoutService.ctx.services.WorldEvent.canStart(EVENT)
 	if prompts.sabotage then
@@ -117,7 +103,6 @@ local function applyGrid(down: boolean, seconds: number)
 	gridDown = down
 	local S = BlackoutService.ctx.services
 	setGridLights(not down)
-	setSky(down)
 	S.Security.setGridPower(not down, seconds)
 	S.Security.setGuardVisionScale(BlackoutRules.visionScale(BC, "guard", down))
 	S.Police.setGridDown(down, BlackoutRules.visionScale(BC, "cop", down))
@@ -219,7 +204,7 @@ local function complete(player: Player, kind: string)
 			if crew then
 				S.EventLog.crew(crew.id, string.format("%s cut the harbour grid (%d s)", Comms.name(player), BC.DurationSeconds), "warn")
 			end
-			Comms.cueAll("PowerCut")
+			Comms.cueAt("PowerCut", refs.cabinet.Position, 3000)
 			Comms.toastAll(string.format("BLACKOUT — the harbour grid is down for %d s. Reset it at the substation in the crane yard.", BC.DurationSeconds), "alarm")
 			Comms.toast(player, string.format("Grid cut. Police heat +%d. Cameras dark, shutters up, pier shields down.", BC.SaboteurHeat), "good")
 		end
@@ -296,7 +281,6 @@ end
 function BlackoutService.start()
 	local S = BlackoutService.ctx.services
 	refs = BlackoutService.ctx.world.island.substation
-	NORMAL = { Brightness = Lighting.Brightness, OutdoorAmbient = Lighting.OutdoorAmbient, Ambient = Lighting.Ambient, FogColor = Lighting.FogColor }
 	collectLights(BlackoutService.ctx.world.root)
 	setGridLights(true)
 	if refs then

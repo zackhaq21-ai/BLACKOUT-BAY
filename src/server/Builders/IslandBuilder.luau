@@ -9,9 +9,9 @@ local Builder = require(script.Parent.Builder)
 local IslandBuilder = {}
 
 local STYLE = {
-	Stone = { material = Enum.Material.Concrete, color = Palette.PaleStone, window = Palette.WarmInterior },
+	Stone = { material = Enum.Material.Limestone, color = Palette.PaleStone, window = Palette.WarmInterior }, -- pale civic stone, distinct from concrete plinths
 	Warm = { material = Enum.Material.Brick, color = Palette.WarmStone, window = Palette.WarmInterior },
-	Industrial = { material = Enum.Material.Metal, color = Palette.Industrial, window = Palette.SeaGlass },
+	Industrial = { material = Enum.Material.CorrodedMetal, color = Palette.Industrial, window = Palette.SeaGlass }, -- weathered steel, distinct from painted vehicle metal
 	Glass = { material = Enum.Material.Glass, color = Palette.Glass, window = Palette.SeaGlass },
 	Brick = { material = Enum.Material.Brick, color = Palette.Rust, window = Palette.WarmInterior },
 	Yard = { material = Enum.Material.Concrete, color = Palette.DarkAsphalt, window = Palette.SeaGlass },

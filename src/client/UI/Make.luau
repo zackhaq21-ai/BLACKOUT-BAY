@@ -92,10 +92,47 @@ function Make.button(parent: Instance, name: string, text: string, color: Color3
 	b.TextWrapped = true
 	b.Parent = parent
 	Make.corner(b, 8)
+	Make.pressFeedback(b)
 	if onClick then
 		b.Activated:Connect(onClick)
 	end
 	return b
+end
+
+-- Restrained press feedback: a quick 4% dip on press, back on release. Motion communicates the click;
+-- nothing else on the button moves.
+function Make.pressFeedback(button: GuiButton)
+	local TweenService = game:GetService("TweenService")
+	local scale = Instance.new("UIScale")
+	scale.Parent = button
+	button.MouseButton1Down:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.96 }):Play()
+	end)
+	local function up()
+		TweenService:Create(scale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end
+	button.MouseButton1Up:Connect(up)
+	button.MouseLeave:Connect(up)
+	button.SelectionGained:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.03 }):Play()
+	end)
+	button.SelectionLost:Connect(up)
+end
+
+-- Pulse a label when its value changes (money, stash): brief scale and colour lift, then settle.
+function Make.pulse(label: TextLabel, color: Color3?)
+	local TweenService = game:GetService("TweenService")
+	local scale = label:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+	scale.Parent = label
+	local base = label.TextColor3
+	scale.Scale = 1.12
+	if color then
+		label.TextColor3 = color
+	end
+	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	if color then
+		TweenService:Create(label, TweenInfo.new(0.6), { TextColor3 = base }):Play()
+	end
 end
 
 function Make.ghostButton(parent: Instance, name: string, text: string, onClick: (() -> ())?): TextButton

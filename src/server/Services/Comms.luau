@@ -39,6 +39,17 @@ function Comms.cueMany(players: { Player }, name: string)
 	end
 end
 
+-- Positional cue: sound and VFX at a world position for everyone within `radius` (default 160 studs)
+function Comms.cueAt(name: string, position: Vector3, radius: number?)
+	local r = radius or 160
+	for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+		local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - position).Magnitude <= r then
+			Net.event("Cue"):FireClient(p, { name = name, x = position.X, y = position.Y, z = position.Z })
+		end
+	end
+end
+
 function Comms.cueAll(name: string)
 	Net.event("Cue"):FireAllClients({ name = name })
 end

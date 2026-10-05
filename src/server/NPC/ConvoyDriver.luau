@@ -3,11 +3,16 @@
 -- player's car blocks the road, back out when stuck. Physics is server-owned (network owner nil). No per-frame
 -- pathfinding: the route is a fixed list of road nodes chosen at spawn.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage.Shared.Config)
+local VehicleFeel = require(ReplicatedStorage.Shared.Core.VehicleFeel)
+
+local PV = Config.Presentation.Vehicle
 
 local ConvoyDriver = {}
 ConvoyDriver.__index = ConvoyDriver
 
-local WHEEL_RADIUS = 1.4
+local WHEEL_RADIUS = Config.Vehicles.WheelRadius
 local WAYPOINT_RADIUS = 12
 local PROBE_DISTANCE = 16
 
@@ -87,8 +92,10 @@ function ConvoyDriver:drive(target: Vector3, wantSpeed: number, now: number)
 	if reversing then
 		steer = -steer
 	end
+	local forwardVel = chassis.AssemblyLinearVelocity:Dot(chassis.CFrame.LookVector)
 	for _, s in ipairs(self.rec.servos) do
-		s.TargetAngle = steer * 35 * math.clamp(self.tune.steer / 0.55, 0.5, 1)
+		s.TargetAngle = steer * 35 * VehicleFeel.steerLock(PV, self.tune, forwardVel)
+		s.AngularSpeed = VehicleFeel.steerSpeed(PV, self.tune, forwardVel)
 	end
 	local torque = chassis.AssemblyMass * self.tune.accel * WHEEL_RADIUS
 	local speed = if reversing then -wantSpeed * 0.4 else wantSpeed * (if math.abs(angle) > 60 then 0.4 elseif math.abs(angle) > 25 then 0.7 else 1)

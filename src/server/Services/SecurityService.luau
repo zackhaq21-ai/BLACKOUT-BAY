@@ -30,6 +30,7 @@ local listeners = {}
 local alarmOrigin = nil
 local camerasWereActive = nil
 local guardVisionScale = 1
+local visionFactors: { [string]: number } = {} -- source -> factor (blackout, weather); product is applied
 local junctionCutUntil = 0
 local gridPowerOff = false
 local lastNoiseAt = {} -- key -> time (throttle noise reports from held prompts)
@@ -449,7 +450,7 @@ function SecurityService.onFrontSmash(player: Player)
 			Builder.part(museum.model, d.CFrame * CFrame.new(math.random(-4, 4), -5, math.random(1, 4)) * CFrame.Angles(0, i, 0), Vector3.new(1.5, 0.1, 1), { name = "DoorShard", material = Enum.Material.Glass, color = Palette.Glass, transparency = 0.4, canCollide = false })
 		end
 	end
-	Comms.cueAll("Smash")
+	Comms.cueAt("Smash", museum.frontDoors[1].Position, 3000)
 	SecurityService.noise("Front doors smashed by " .. Comms.name(player), player)
 	SecurityService.ctx.services.Police.addHeat(player, Config.Police.AlarmHeat, "smashed the museum doors")
 end
@@ -542,8 +543,18 @@ function SecurityService.setGridPower(on: boolean, seconds: number)
 	end
 end
 
+-- Several sources (blackout, weather) each contribute a factor; guards see the product, floored so they never go blind.
+function SecurityService.setVisionFactor(source: string, scale: number)
+	visionFactors[source] = math.clamp(if scale ~= scale then 1 else scale, 0.25, 1)
+	local product = 1
+	for _, f in pairs(visionFactors) do
+		product *= f
+	end
+	guardVisionScale = math.clamp(product, 0.25, 1)
+end
+
 function SecurityService.setGuardVisionScale(scale: number)
-	guardVisionScale = math.clamp(scale, 0.25, 1)
+	SecurityService.setVisionFactor("blackout", scale)
 end
 
 function SecurityService.guardVisionScale(): number

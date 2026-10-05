@@ -8,7 +8,7 @@ local Palette = require(ReplicatedStorage.Shared.Palette)
 
 local VehicleBuilder = {}
 
-local WHEEL_RADIUS = 1.4
+local WHEEL_RADIUS = Config.Vehicles.WheelRadius
 
 local SHAPES = {
 	Kestrel = { length = 13, width = 6.2, cabin = { 5.4, 2.2, 6 }, color = Palette.SeaGlassDeep, chassisY = 1.1 },

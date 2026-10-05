@@ -204,6 +204,7 @@ function InteractionService.start()
 			securityLevel = S.Security.level(),
 			worldEvents = S.WorldEvent.snapshot(),
 			convoy = S.Convoy.snapshot(),
+			weather = S.Environment.snapshot(),
 		}
 	end
 end

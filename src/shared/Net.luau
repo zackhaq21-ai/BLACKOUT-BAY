@@ -28,6 +28,7 @@ Net.Events = {
 	"WantedList", -- {wanted = {{userId, name, bounty, crewmate}}, min, max}
 	"WorldEvent", -- {id, label, active, endsAt, secondsLeft, startedBy?, reason?}
 	"ConvoyState", -- {active, phase, landmark, cargo, crates, alert, secondsLeft, x, z}
+	"Weather", -- {state, previous, changedAt, blendSeconds}
 	-- client -> server
 	"CrewRequest", -- {action, ...}
 	"MissionRequest", -- {action, ...}

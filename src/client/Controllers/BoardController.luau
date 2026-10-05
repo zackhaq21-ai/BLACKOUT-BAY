@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Make = require(script.Parent.Parent.UI.Make)
+local EnvironmentController = require(script.Parent.EnvironmentController)
 
 local BoardController = {}
 
@@ -304,8 +305,12 @@ local function build()
 	Make.list(lk, 6)
 	refs.looksHead = Make.label(lk, "Head", "", Theme.Body, Theme.Text, true)
 	Make.label(lk, "Note", "Looks are permanent once earned or owned. Raids and lost runs never take them. No paid look changes stats, hitboxes or visibility. Purchasing is disabled in this build.", Theme.Small, Theme.Muted)
+	local gfx
+	gfx = Make.ghostButton(lk, "Graphics", "Graphics: " .. EnvironmentController.tierLabel(), function()
+		gfx.Text = "Graphics: " .. EnvironmentController.cycleTier()
+	end)
 	local ls = Instance.new("ScrollingFrame")
-	ls.Size = UDim2.new(1, 0, 1, -70)
+	ls.Size = UDim2.new(1, 0, 1, -124)
 	ls.BackgroundTransparency = 1
 	ls.BorderSizePixel = 0
 	ls.ScrollBarThickness = 6
