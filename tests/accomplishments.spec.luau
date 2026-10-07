@@ -1,0 +1,52 @@
+local A = require("../src/shared/Core/Accomplishments")
+local ProfileOps = require("../src/shared/Core/ProfileOps")
+local Config = require("../src/shared/Config")
+local defs = Config.Accomplishments
+
+return function(t)
+	t.test("ten original accomplishments with positive standing", function()
+		t.eq(#defs, 10)
+		local ids = {}
+		for _, d in ipairs(defs) do
+			t.falsy(ids[d.id], "duplicate id " .. d.id); ids[d.id] = true
+			t.truthy(d.standing > 0 and d.standing <= 200, d.id)
+			t.truthy(#d.name >= 5 and #d.blurb >= 10, d.id)
+		end
+		t.truthy(A.find(defs, "glass_ghost")); t.falsy(A.find(defs, "nope"))
+	end)
+	t.test("evaluation rules", function()
+		local function has(list, id) return table.find(list, id) ~= nil end
+		local clean = A.evaluate("jobClosed", { headline = "GHOST CREW", delivered = 900, members = 1, arrests = 0, weather = "Clear", heatLevel = 0 })
+		t.truthy(has(clean, "glass_ghost")); t.falsy(has(clean, "everyone_home"))
+		local hot = A.evaluate("jobClosed", { headline = "LAST LIGHT", delivered = 900, members = 3, arrests = 0, weather = "Storm", heatLevel = 2 })
+		t.truthy(has(hot, "hot_hands") and has(hot, "everyone_home") and has(hot, "storm_runner"))
+		t.falsy(has(A.evaluate("jobClosed", { headline = "GHOST CREW", delivered = 0 }), "glass_ghost"), "nothing without a payout")
+		t.falsy(has(A.evaluate("jobClosed", { headline = "GHOST CREW", delivered = 100, raid = true }), "glass_ghost"), "raids are not museum runs")
+		t.falsy(has(A.evaluate("jobClosed", { headline = "GHOST CREW", delivered = 100, members = 3, arrests = 1 }), "everyone_home"))
+		t.truthy(has(A.evaluate("crateFenced", { variant = "storm" }), "seawall_haul"))
+		t.truthy(has(A.evaluate("crateFenced", { variant = "standard", breachedDuringBlackout = true }), "lights_out_lift"))
+		t.truthy(has(A.evaluate("blackoutReset", { resetterKey = "b", cutterKey = "a" }), "grid_warden"))
+		t.falsy(has(A.evaluate("blackoutReset", { resetterKey = "a", cutterKey = "a" }), "grid_warden"), "no self reset")
+		t.truthy(has(A.evaluate("bountyClaimed", { payout = 1000 }), "price_on_the_mist"))
+		t.falsy(has(A.evaluate("bountyClaimed", { payout = 999 }), "price_on_the_mist"))
+		t.truthy(has(A.evaluate("recoveryDone", { lost = 3000, owed = 3000 }), "made_whole"))
+		t.falsy(has(A.evaluate("recoveryDone", { lost = 2999, owed = 3000 }), "made_whole"))
+		t.truthy(has(A.evaluate("entries", { front = true, dock = true, roof = true }), "three_doors"))
+		t.falsy(has(A.evaluate("entries", { front = true, dock = true }), "three_doors"))
+		t.eq(#A.evaluate("jobClosed", "junk"), 0)
+	end)
+	t.test("profile ops: accomplishment exactly once, entries set once, caps on xp", function()
+		local p = { xp = 0, wins = 0, stats = { jobs = 0 }, entitlements = {}, receipts = {}, runsSeen = {}, equipped = "mint", decor = "" }
+		local _, c1 = ProfileOps.apply(p, { kind = "Accomplish", id = "glass_ghost", xp = 120, day = "d" }, Config.Commerce.Catalog)
+		local _, c2 = ProfileOps.apply(p, { kind = "Accomplish", id = "glass_ghost", xp = 120, day = "d" }, Config.Commerce.Catalog)
+		t.truthy(c1); t.falsy(c2); t.eq(p.xp, 120)
+		ProfileOps.apply(p, { kind = "Accomplish", id = "huge", xp = 1e9 }, Config.Commerce.Catalog)
+		t.eq(p.xp, 120 + 100000, "capped")
+		ProfileOps.apply(p, { kind = "Accomplish", id = "nan", xp = 0 / 0 }, Config.Commerce.Catalog)
+		t.eq(p.xp, 120 + 100000)
+		local _, e1 = ProfileOps.apply(p, { kind = "Entry", item = "roof" }, Config.Commerce.Catalog)
+		local _, e2 = ProfileOps.apply(p, { kind = "Entry", item = "roof" }, Config.Commerce.Catalog)
+		local _, e3 = ProfileOps.apply(p, { kind = "Entry", item = "window" }, Config.Commerce.Catalog)
+		t.truthy(e1); t.falsy(e2); t.falsy(e3); t.truthy(p.entries.roof)
+	end)
+end

@@ -43,6 +43,9 @@ local function buildUnit(parent: Folder, h, index: number)
 	local stash = Builder.box(m, h.x + 12, 3, z2 - 1.6, 12, 6, 1, { name = "StashSign", material = Enum.Material.SmoothPlastic, color = Palette.Night })
 	Builder.label(stash, "STASH\n0", Enum.NormalId.Front, Palette.Gold)
 	Builder.box(m, x2 - 6, 1, h.z + 28, 8, 2.5, 12, { name = "Bunk", material = Enum.Material.Fabric, color = Palette.SeaGlassDeep })
+	-- Crew ledger wall: the crew's story, painted on the west wall of the living space
+	local ledger = Builder.box(m, x1 + 1.3, 2.5, h.z + 14, 0.6, 9, 18, { name = "LedgerWall", material = Enum.Material.SmoothPlastic, color = Palette.Night })
+	Builder.label(ledger, "CREW LEDGER", Enum.NormalId.Right, Palette.PaleStone, 22)
 	local lamp = Builder.box(m, h.x, ROOF_H - 1.5, h.z + 16, 6, 0.5, 6, { name = "Lamp", material = Enum.Material.Neon, color = Palette.WarmInterior, canCollide = false })
 	Builder.pointLight(lamp, Palette.WarmInterior, 1.3, 40)
 	local bayLamp = Builder.box(m, h.x, ROOF_H - 1.5, z1 + 12, 6, 0.5, 6, { name = "BayLamp", material = Enum.Material.Neon, color = Palette.Glass, canCollide = false })
@@ -68,6 +71,7 @@ local function buildUnit(parent: Folder, h, index: number)
 		board = board,
 		deliveryTable = table_,
 		stashSign = stash,
+		ledgerWall = ledger,
 		bounds = { minX = x1, maxX = x2, minZ = z1, maxZ = z2 + 32 },
 	}
 end

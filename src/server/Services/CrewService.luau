@@ -7,6 +7,8 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local SplitLedger = require(ReplicatedStorage.Shared.Core.SplitLedger)
 local Comms = require(script.Parent.Comms)
+local CrewRecord = require(ReplicatedStorage.Shared.Core.CrewRecord)
+local TextService = game:GetService("TextService")
 
 local CrewService = { ctx = nil :: any }
 
@@ -72,6 +74,8 @@ function CrewService.snapshot(crew)
 		colorIndex = crew.colorIndex,
 		jobActive = Mission and Mission.isJobActive(crew.id) or false,
 		maxSize = Config.Server.MaxCrewSize,
+		name = crew.record and crew.record.name or (Comms.name(crew.leader) .. "'s crew"),
+		record = crew.record and CrewRecord.summary(crew.record, os.time()) or nil,
 	}
 end
 
@@ -103,7 +107,85 @@ local function createCrew(leader: Player)
 	Hideout.bindCrewUnit(crew)
 	CrewService.broadcast(crew)
 	CrewService.ctx.services.EventLog.crew(crew.id, Comms.name(leader) .. " formed a crew at " .. (crew.unit and crew.unit.label or "the harbour"))
+	-- Durable identity follows the leader: load their crew record (name, ledger) off the hot path
+	task.spawn(function()
+		local record = CrewService.ctx.services.CrewStore.load(leader.UserId, Comms.name(leader))
+		if crews[crew.id] == crew then
+			crew.record = record
+			CrewService.broadcast(crew)
+			CrewService.ctx.services.Hideout.refreshLedger(crew)
+		end
+	end)
 	return crew
+end
+
+-- Record something on the leader's durable crew record (bounded history, totals, bests, milestones)
+function CrewService.note(crewId: string, kind: string, value: number, text: string, milestoneId: string?)
+	local crew = crews[crewId]
+	if not crew or not crew.leader or not crew.leader.Parent then
+		return
+	end
+	local Store = CrewService.ctx.services.CrewStore
+	local ok, _, rec = Store.apply(crew.leader.UserId, Comms.name(crew.leader), function(r)
+		r = CrewRecord.note(r, kind, value, text, os.time(), Config.Crews)
+		if milestoneId then
+			r = CrewRecord.milestone(r, milestoneId, os.time(), Config.Crews)
+		end
+		return r, nil
+	end)
+	if ok then
+		crew.record = rec
+		CrewService.ctx.services.Hideout.refreshLedger(crew)
+		CrewService.broadcast(crew)
+	end
+end
+
+-- Rename (leader only): validate, FILTER through Roblox TextService, then apply with the cooldown.
+local renameAt: { [Player]: number } = {}
+function CrewService.rename(player: Player, name)
+	local crew = CrewService.crewOf(player)
+	if not crew or crew.leader ~= player then
+		Comms.toast(player, "Only the crew leader can rename the crew.", "warn")
+		return false
+	end
+	if os.clock() - (renameAt[player] or -100) < 5 then
+		return false
+	end
+	renameAt[player] = os.clock()
+	local normalized, why = CrewRecord.validateName(Config.Crews, name)
+	if not normalized then
+		Comms.toast(player, "Crew name: " .. tostring(why) .. ".", "warn")
+		return false
+	end
+	local okFilter, filtered = pcall(function()
+		return TextService:FilterStringAsync(normalized, player.UserId, Enum.TextFilterContext.PublicChat):GetNonChatStringForBroadcastAsync()
+	end)
+	if not okFilter or type(filtered) ~= "string" then
+		Comms.toast(player, "Couldn't check that name right now. Try again in a moment.", "warn")
+		return false
+	end
+	if filtered ~= normalized then
+		Comms.toast(player, "That name didn't pass the filter. Pick another.", "warn")
+		return false
+	end
+	local ok, err, rec = CrewService.ctx.services.CrewStore.apply(player.UserId, Comms.name(player), function(r)
+		local updated, e = CrewRecord.rename(r, filtered, os.time(), Config.Crews)
+		if not updated then
+			return nil, e
+		end
+		return updated, nil
+	end)
+	if not ok then
+		Comms.toast(player, "Rename failed: " .. tostring(err) .. ".", "warn")
+		return false
+	end
+	crew.record = rec
+	CrewService.ctx.services.EventLog.crew(crew.id, "The crew is now called " .. rec.name)
+	Comms.toastMany(crew.members, "Crew renamed: " .. rec.name, "good")
+	CrewService.ctx.services.Hideout.refreshLedger(crew)
+	CrewService.broadcast(crew)
+	CrewService.ctx.services.Telemetry.track("crew_rename", {})
+	return true
 end
 
 local function destroyCrew(crew)
@@ -241,6 +323,17 @@ function CrewService.join(player: Player, code: string)
 	table.insert(target.members, player)
 	playerCrew[player] = target.id
 	target.shares = SplitLedger.equal(memberKeys(target))
+	if target.record then
+		local Store = CrewService.ctx.services.CrewStore
+		task.spawn(function()
+			local ok, _, rec = Store.apply(target.leader.UserId, Comms.name(target.leader), function(r)
+				return CrewRecord.touchMember(r, player.UserId, Comms.name(player), Config.Crews), nil
+			end)
+			if ok and crews[target.id] == target then
+				target.record = rec
+			end
+		end)
+	end
 	CrewService.ctx.services.EventLog.crew(target.id, Comms.name(player) .. " joined the crew")
 	CrewService.broadcast(target)
 	Comms.toastMany(target.members, Comms.name(player) .. " joined the crew.", "good")
@@ -308,6 +401,8 @@ function CrewService.handleRequest(player: Player, req)
 		end
 	elseif action == "setShares" then
 		CrewService.setShares(player, req.shares)
+	elseif action == "rename" then
+		CrewService.rename(player, req.name)
 	elseif action == "refresh" then
 		local crew = CrewService.ensure(player)
 		CrewService.broadcast(crew)

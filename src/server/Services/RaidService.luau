@@ -449,6 +449,17 @@ local function finishRaid(raid, reason: string)
 		for _, m in ipairs(raid.crew.members) do
 			S.Progression.award(m, if raid.recovery then "recovery" else "raid", raid.id, #raid.crew.members)
 		end
+		if raid.recovery then
+			S.Accomplishment.check("recoveryDone", { lost = lost, owed = raid.recovery.remaining }, raid.crew.members)
+			S.Crew.note(raid.crewId, "recovery", lost, raid.raiderName .. " recovered " .. lost .. " from " .. raid.recovery.victimName)
+		else
+			S.Crew.note(raid.crewId, "raid", lost, raid.raiderName .. "'s crew took " .. lost .. " from " .. raid.targetName)
+			local owner = ownerPlayer(state)
+			local ownerCrew = owner and S.Crew.crewOf(owner)
+			if ownerCrew then
+				S.Crew.note(ownerCrew.id, "raidTaken", lost, raid.raiderName .. " raided the pier for " .. lost)
+			end
+		end
 	end
 	S.Telemetry.track(if raid.recovery then "recovery_end" else "raid_end", { reason = reason, lost = lost, retained = raid.retained, members = #raid.crew.members })
 	if state then

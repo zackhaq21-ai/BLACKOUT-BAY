@@ -11,6 +11,7 @@ Recover the exact review sequence with `tools/verify-stack.sh` (prints this tabl
 | 4 | `claude/review-m9-convoys` | `2f0ab3b` | row 3 | armored convoy event | 0 / 0 / 74 tests / builds |
 | 5 | `claude/review-m10-polish` | `c99420b` | row 4 | premium polish pass (feel, camera, vehicles, environment, VFX, audio, UI) | 0 / 0 / 90 tests / builds |
 | 6 | `claude/review-m11-studio-qa` | `8ea2970` | row 5 | Studio QA pack only: sectioned master scenario, perf capture, torture test, config-derived texts, QA docs | 0 / 0 / 90 tests / builds |
+| 9 | `claude/review-m14-living-world` | see `git rev-parse --short claude/review-m14-living-world` | row 8 | contacts, persistent crew identity + ledger wall, curated museum variants, storm convoy, accomplishments | 0 / 0 / 114 tests / builds |
 | 8 | `claude/review-m13-progression` | `ebe7abb` (moves with each batch) | row 7 | Standing ranks and option unlocks on the existing XP channel, first-session onboarding, telemetry hooks, scenario sections | 0 / 0 / 99 tests / builds |
 | 7 | `claude/review-m12-studio-fixes` | `200ade4` (moves with each evidence-driven commit) | row 6 | evidence-driven fixes and tuning from real Studio runs (harness arrival confirmation first) | 0 / 0 / 90 tests / builds |
 
@@ -36,4 +37,5 @@ git merge --ff-only claude/review-m10-polish
 git merge --ff-only claude/review-m11-studio-qa
 git merge --ff-only claude/review-m12-studio-fixes
 git merge --ff-only claude/review-m13-progression
+git merge --ff-only claude/review-m14-living-world
 ```

@@ -111,6 +111,7 @@ local function snapshot()
 		phase = pub.phase,
 		cargo = pub.cargo,
 		crates = pub.crates,
+		variant = ev.variant,
 		alert = pub.alert,
 		landmark = landmarkOf(pos),
 		secondsLeft = ConvoyService.ctx.services.WorldEvent.secondsLeft(EVENT),
@@ -207,7 +208,7 @@ local function completeBreach(player: Player)
 		Comms.toast(player, "Breach failed: " .. why .. ".", "warn")
 		return
 	end
-	local values = ConvoyRules.cargoValues(CC)
+	local values, weight = ConvoyRules.cargoFor(CC, CC.Storm, ev.variant)
 	if not values then
 		warn("[Convoy] cargo configuration rejected")
 		return
@@ -218,7 +219,8 @@ local function completeBreach(player: Player)
 	end
 	local doors = ev.transport.rec.model:FindFirstChild("CargoDoors")
 	local behind = doors.Position - doors.CFrame.LookVector * 4 - Vector3.new(0, doors.Size.Y / 2 - 1, 0) -- LookVector points to the cab; crates land behind the truck
-	local ids = S.Loot.mintBundles(values, behind, "convoy:" .. ev.id, CC.CargoLabel)
+	ev.breachBlackout = S.Blackout.isGridDown()
+	local ids = S.Loot.mintBundles(values, behind, "convoy:" .. ev.id, if ev.variant == "storm" then CC.Storm.CargoLabel else CC.CargoLabel, weight)
 	ev.cargo.crates = ids
 	local t = now()
 	for _, id in ipairs(ids) do
@@ -420,7 +422,9 @@ local function spawnVehicles()
 	Comms.toastAll(string.format("The armored convoy is rolling from %s.", landmarkOf(frames[2].Position)), "warn")
 end
 
-local function begin(routeIndex: number?, skipAnticipation: boolean?)
+local pendingVariant = "standard"
+
+local function begin(routeIndex: number?, skipAnticipation: boolean?, forceVariant: string?)
 	local S = ConvoyService.ctx.services
 	local players = {}
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -429,6 +433,18 @@ local function begin(routeIndex: number?, skipAnticipation: boolean?)
 			table.insert(players, { x = root.Position.X, z = root.Position.Z })
 		end
 	end
+	-- Rare curated variant: a storm sends the convoy along the Seawall with one heavy sealed crate
+	local variant = ConvoyRules.pickVariant(CC.Storm, S.Environment.state(), rng:NextNumber())
+	if variant == "storm" and not routeIndex then
+		routeIndex = ConvoyRules.routeIndexByName(Blueprint.ConvoyRoutes, CC.Storm.RouteName)
+	end
+	if forceVariant then
+		variant = forceVariant
+		if variant == "storm" and not routeIndex then
+			routeIndex = ConvoyRules.routeIndexByName(Blueprint.ConvoyRoutes, CC.Storm.RouteName)
+		end
+	end
+	pendingVariant = variant
 	local idx = routeIndex or ConvoyRules.pickRoute(Blueprint.ConvoyRoutes, lastRouteIndex, players, CC.MinSpawnDistanceFromPlayers, function(n)
 		return rng:NextInteger(1, n)
 	end)
@@ -473,6 +489,8 @@ local function onStart(active)
 		strobePhase = false,
 		lastPush = 0,
 		lastPerception = 0,
+		variant = pendingVariant,
+		breachBlackout = false,
 	}
 	local a, b = route.waypoints[1], route.waypoints[#route.waypoints]
 	Comms.cueAll("ConvoyAnnounce")
@@ -665,6 +683,10 @@ local function onLootEvent(kind: string, data)
 		if data.player then
 			local crew = S.Crew.crewOf(data.player)
 			S.Progression.award(data.player, "convoyCrate", data.item.id, crew and #crew.members or 1)
+			S.Accomplishment.check("crateFenced", { variant = ev.variant, breachedDuringBlackout = ev.breachBlackout }, { data.player })
+			if crew then
+				S.Crew.note(crew.id, "convoy", data.value or 0, Comms.name(data.player) .. " fenced a " .. (if ev.variant == "storm" then "sealed harbour crate" else "convoy crate") .. " for " .. tostring(data.value or 0))
+			end
 		end
 		S.Telemetry.track("convoy_crate_fenced", { value = data.value or 0 })
 		if data.crewId then
@@ -676,6 +698,14 @@ local function onLootEvent(kind: string, data)
 end
 
 -- Public API -------------------------------------------------------------------------------------------
+-- Partial intel for the deck mechanic: seconds until the next auto-scheduled convoy (nil while one runs)
+function ConvoyService.secondsUntilNext(): number?
+	if ev then
+		return nil
+	end
+	return math.max(0, nextAutoAt - now())
+end
+
 function ConvoyService.isActive(): boolean
 	return ev ~= nil
 end
@@ -685,8 +715,8 @@ function ConvoyService.snapshot()
 end
 
 -- Engine-test helpers (same validation as live play) --------------------------------------------------
-function ConvoyService.testStart(routeIndex: number?): boolean
-	local ok = begin(routeIndex, true)
+function ConvoyService.testStart(routeIndex: number?, variant: string?): boolean
+	local ok = begin(routeIndex, true, variant)
 	return ok == true
 end
 

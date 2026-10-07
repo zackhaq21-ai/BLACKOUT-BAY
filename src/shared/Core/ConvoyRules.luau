@@ -216,6 +216,38 @@ function ConvoyRules.abandoned(cfg: Cfg, droppedSince: number, now: number): boo
 	return now - droppedSince >= math.clamp(tonumber(cfg.AbandonSeconds) or 150, 30, 600)
 end
 
+-- Rare curated variant: during a Storm the convoy takes the Seawall route with one heavy sealed crate.
+-- Not easy money: the carrier is slow, cannot climb or jump, and police heat still applies.
+export type StormCfg = { Chance: number, RouteName: string, CargoValue: number, CargoLabel: string }
+function ConvoyRules.pickVariant(storm: StormCfg?, weather: string, roll: number): string
+	if not storm or weather ~= "Storm" then
+		return "standard"
+	end
+	local chance = math.clamp(tonumber(storm.Chance) or 0, 0, 1)
+	return if math.clamp(if roll ~= roll then 1 else roll, 0, 1) < chance then "storm" else "standard"
+end
+
+function ConvoyRules.cargoFor(cfg: Cfg, storm: StormCfg?, variant: string): ({ number }?, string, string?)
+	if variant == "storm" and storm then
+		local v = math.floor(tonumber(storm.CargoValue) or 0)
+		if v <= 0 or v > MAX_TOTAL then
+			return nil, "Light", "invalid storm cargo"
+		end
+		return { v }, "Heavy", nil
+	end
+	local values, err = ConvoyRules.cargoValues(cfg)
+	return values, "Light", err
+end
+
+function ConvoyRules.routeIndexByName(routes: { Route }, name: string): number?
+	for i, r in ipairs(routes) do
+		if r.name == name then
+			return i
+		end
+	end
+	return nil
+end
+
 -- What every client may know. Never includes crate values, the route index or the players' heat.
 export type Public = { phase: string, cargo: string, crates: number, alert: number }
 function ConvoyRules.publicState(phase: string, cargo: Cargo, alert: Alert, loose: number): Public

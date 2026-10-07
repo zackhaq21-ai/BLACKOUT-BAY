@@ -231,6 +231,7 @@ function HudController.toast(text: string, kind: string?)
 	Make.padding(f, 8)
 	local t = Make.label(f, "Text", text, Theme.Body, if kind == "alarm" then Theme.Alarm else Theme.Text, kind == "alarm")
 	t.TextXAlignment = Enum.TextXAlignment.Center
+	t.RichText = true
 	-- slide in from above and fade up; alarms also get the stroke to breathe once
 	f.BackgroundTransparency = 1
 	t.TextTransparency = 1
@@ -362,7 +363,10 @@ local function convoyLine(c): string
 	local phase = tostring(c.phase or "")
 	local where = tostring(c.landmark or "")
 	local cargo = tostring(c.cargo or "secured")
-	local cargoText = if cargo == "secured" then "cargo secured" elseif cargo == "sealed" then "cargo sealed" elseif cargo == "loose" then string.format("%d crates loose", c.crates or 0) else "cargo taken"
+	local cargoText = if cargo == "secured" then "cargo secured" elseif cargo == "sealed" then "cargo sealed" elseif cargo == "loose" then string.format("%d crate%s loose", c.crates or 0, if (c.crates or 0) == 1 then "" else "s") else "cargo taken"
+	if c.variant == "storm" then
+		cargoText = "STORM RUN · one heavy sealed crate · " .. cargoText
+	end
 	if phase == "Departing" then
 		return "Leaving soon from " .. where .. " · " .. cargoText
 	elseif phase == "Checkpoint" then
@@ -526,6 +530,12 @@ function HudController.init()
 	end)
 	Net.event("Jail").OnClientEvent:Connect(setJail)
 	Net.event("WorldEvent").OnClientEvent:Connect(setWorldEvent)
+	Net.event("Dialogue").OnClientEvent:Connect(function(d)
+		if type(d) ~= "table" or type(d.text) ~= "string" then
+			return
+		end
+		HudController.toast(string.format("<b>%s</b> <font color='#9aa3af'>· %s</font>\n%s", tostring(d.speaker or "?"), tostring(d.role or ""), d.text:sub(1, 240)), "info")
+	end)
 	Net.event("ConvoyState").OnClientEvent:Connect(function(c)
 		if type(c) ~= "table" then
 			return

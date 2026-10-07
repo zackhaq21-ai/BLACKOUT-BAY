@@ -64,7 +64,12 @@ local function rebuildCrew()
 		return
 	end
 	local isLeader = crew.leaderId == player.UserId
-	refs.crewHeader.Text = string.format("%s · %d/%d · code <b>%s</b>", crew.unitLabel or "Crew", #crew.members, crew.maxSize or 5, crew.code or "")
+	refs.crewHeader.Text = string.format("<b>%s</b> · %s · %d/%d · code <b>%s</b>", crew.name or "Crew", crew.unitLabel or "?", #crew.members, crew.maxSize or 5, crew.code or "")
+	if refs.crewRecord then
+		local rec = crew.record
+		refs.crewRecord.Text = if rec then string.format("Crew ledger: %d jobs · %d fenced · biggest raid %d · highest bounty %d · %d milestones", rec.totals.jobs or 0, rec.totals.delivered or 0, rec.bests.biggestRaid or 0, rec.bests.highestBounty or 0, rec.milestones or 0) else ""
+		refs.renameRow.Visible = crew.leaderId == player.UserId
+	end
 	pendingShares = pendingShares or {}
 	for i, m in ipairs(crew.members) do
 		local key = tostring(m.userId)
@@ -208,6 +213,18 @@ local function build()
 	refs.leave = Make.ghostButton(right, "Leave", "Leave crew (keep what you carry)", function()
 		send("leave")
 	end)
+	refs.crewRecord = Make.label(right, "Record", "", Theme.Small, Theme.Muted)
+	local renameRow = Make.frame(right, "RenameRow", UDim2.new(1, 0, 0, Theme.MinButton), UDim2.new(), Theme.Panel, 1)
+	refs.renameRow = renameRow
+	renameRow.Visible = false
+	refs.renameBox = Make.textbox(renameRow, "Name", "Crew name (3–20 characters)")
+	refs.renameBox.Size = UDim2.new(0.6, -4, 1, 0)
+	local renameBtn = Make.ghostButton(renameRow, "Rename", "Rename crew", function()
+		send("rename", { name = refs.renameBox.Text })
+		refs.renameBox.Text = ""
+	end)
+	renameBtn.Size = UDim2.new(0.4, 0, 1, 0)
+	renameBtn.Position = UDim2.new(0.6, 0, 0, 0)
 	-- Getaway kit: fake bags (approved deception). Decoy cars need no button: roll out a second car and
 	-- send it the loud way with a fake in the trunk.
 	Make.label(right, "KitHead", "Getaway kit", Theme.Body, Theme.Text, true)

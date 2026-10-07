@@ -253,6 +253,8 @@ Config.WorldEvents = {
 		AbandonSeconds = 150, -- loose crates nobody touches are recovered by Harbour Security
 		MinSpawnDistanceFromPlayers = 90,
 		FormationGap = 22,
+		-- Rare curated variant: during a Storm the convoy takes the Seawall route with one heavy crate.
+		Storm = { Chance = 0.5, RouteName = "Seawall Loop", CargoValue = 5000, CargoLabel = "Sealed Harbour Crate" },
 	},
 }
 
@@ -267,15 +269,88 @@ Config.Progression = {
 		{ id = "legend", name = "Harbour Legend", xp = 4000 },
 	},
 	-- unlock key -> rank id required (keys are checked server-side where the action happens)
-	Unlocks = { fakes = "runner", raids = "runner", bounties = "operator", convoyIntel = "operator" },
-	UnlockLabels = { fakes = "fake bags and decoy runs", raids = "raiding other hideouts", bounties = "placing bounties", convoyIntel = "convoy route intel" },
+	Unlocks = { fakes = "runner", raids = "runner", bounties = "operator", convoyIntel = "operator", gridIntel = "runner" },
+	UnlockLabels = { fakes = "fake bags and decoy runs", raids = "raiding other hideouts", bounties = "placing bounties", convoyIntel = "convoy route intel", gridIntel = "grid intel from the lineman" },
 	-- base award per source (before crew bonus and diminishing)
-	Awards = { convoyCrate = 40, raid = 80, recovery = 60, bounty = 50, blackoutReset = 30 },
+	Awards = { convoyCrate = 40, raid = 80, recovery = 60, bounty = 50, blackoutReset = 30, accomplishment = 0 }, -- accomplishments carry their own amount
 	CrewBonusPerExtraMember = 0.1, -- +10% per present crewmate beyond the first, capped by crew size
 	-- per source per day: full value for the first N awards, then multiplied by the factor
-	Diminish = { job = { 6, 0.5 }, convoyCrate = { 6, 0.5 }, raid = { 2, 0.5 }, recovery = { 3, 1 }, bounty = { 2, 0.5 }, blackoutReset = { 2, 0.25 } },
+	Diminish = { job = { 6, 0.5 }, convoyCrate = { 6, 0.5 }, raid = { 2, 0.5 }, recovery = { 3, 1 }, bounty = { 2, 0.5 }, blackoutReset = { 2, 0.25 }, accomplishment = { 0, 1 } },
 	MaxAwardsSeen = 400, -- awardsSeen entries older than two days are pruned past this
 	Onboarding = { SkipAfterJobs = 1, MoveDistance = 25 },
+}
+
+-- Persistent crew identity (one durable crew per owner; session crews bind to the leader's record)
+Config.Crews = {
+	NameMin = 3,
+	NameMax = 20,
+	RenameCooldownSeconds = 300,
+	MaxMembers = 12, -- remembered members (bounded), not a simultaneous cap (crews stay 1–5 live)
+	MaxHistory = 12, -- ledger entries kept
+	MaxMilestones = 32,
+	LedgerLines = 9, -- lines on the physical ledger wall
+}
+
+-- Contacts: a few original people who make opportunities feel like they happen in the world. Config-driven;
+-- lines are chosen server-side from authoritative state. `requires` is a Standing unlock key or nil.
+export type ContactDef = { id: string, name: string, role: string, place: string, x: number, z: number, yaw: number, personality: string, requires: string?, intel: string }
+export type MuseumVariantDef = { id: string, name: string, weight: number, hint: string, hall: { string }, vault: { string }, posture: { lockdownDelay: number, guardSpeedBonus: number, cameraSweepSeconds: number }, entry: string?, infrastructure: string?, weather: { string }? }
+
+Config.Contacts = ({
+	{
+		id = "ines", name = "Ines Varga", role = "Dockmaster", place = "Harbour Office steps",
+		x = 20, z = 272, yaw = 180,
+		personality = "Runs the piers by the book and the books by the piers. Knows which crews are flush.",
+		requires = nil, intel = "museum",
+	},
+	{
+		id = "teo", name = "Teo Lindqvist", role = "Deck mechanic", place = "Parking Deck, ground floor",
+		x = 180, z = -200, yaw = 90,
+		personality = "Talks to engines more than people. Hears every convoy radio on the island.",
+		requires = "convoyIntel", intel = "convoy",
+	},
+	{
+		id = "priya", name = "Priya Sandoval", role = "Lineman", place = "Harbour Substation gate",
+		x = -440, z = -2, yaw = 0,
+		personality = "Keeps the grid alive and resents everyone who cuts it, including the people she tells how.",
+		requires = "gridIntel", intel = "grid",
+	},
+} :: { ContactDef })
+
+-- Museum replay variation: curated, server-selected at each restock. Each variant must change the run.
+-- hall: six case kinds; vault: two; posture: lockdownDelay (s), guardSpeedBonus (studs/s), cameraSweepSeconds;
+-- entry: "service" opens the dock door and drops the front shutter at restock; infrastructure: "powerCut"
+-- kills cameras for Config.Museum.PowerCutSeconds at restock; weather: eligible weather states or nil (any).
+Config.MuseumVariants = ({
+	{ id = "quiet", name = "Quiet Night", weight = 4, hint = "Standard stock. Cameras sweep slow. Any door you like.",
+		hall = { "Trinket", "Trinket", "Trinket", "Relic", "Relic", "Jewel" }, vault = { "Jewel", "Relic" },
+		posture = { lockdownDelay = 25, guardSpeedBonus = 0, cameraSweepSeconds = 6 }, entry = nil, infrastructure = nil, weather = nil },
+	{ id = "gala", name = "Gala Stock", weight = 2, hint = "Jewels on the floor for the gala. Guards are twitchy and the shutter drops fast.",
+		hall = { "Trinket", "Trinket", "Relic", "Relic", "Jewel", "Jewel" }, vault = { "Jewel", "Jewel" },
+		posture = { lockdownDelay = 15, guardSpeedBonus = 3, cameraSweepSeconds = 4 }, entry = nil, infrastructure = nil, weather = nil },
+	{ id = "service", name = "Service Shift", weight = 3, hint = "Front shutter is down for the night. The loading dock is open and busy.",
+		hall = { "Trinket", "Trinket", "Trinket", "Trinket", "Relic", "Jewel" }, vault = { "Relic", "Relic" },
+		posture = { lockdownDelay = 25, guardSpeedBonus = 0, cameraSweepSeconds = 6 }, entry = "service", infrastructure = nil, weather = nil },
+	{ id = "maintenance", name = "Maintenance Window", weight = 2, hint = "Cameras are off for maintenance, briefly. Fewer trinkets, more relics.",
+		hall = { "Trinket", "Relic", "Relic", "Relic", "Jewel", "Jewel" }, vault = { "Jewel", "Relic" },
+		posture = { lockdownDelay = 20, guardSpeedBonus = 0, cameraSweepSeconds = 6 }, entry = nil, infrastructure = "powerCut", weather = nil },
+	{ id = "stormwatch", name = "Storm Watch", weight = 3, hint = "The storm has the guards half blind and the vault fully stocked.",
+		hall = { "Trinket", "Trinket", "Trinket", "Relic", "Relic", "Jewel" }, vault = { "Jewel", "Jewel" },
+		posture = { lockdownDelay = 25, guardSpeedBonus = 0, cameraSweepSeconds = 6 }, entry = nil, infrastructure = nil, weather = { "Rain", "Storm" } },
+} :: { MuseumVariantDef })
+
+-- Server-verified accomplishments: original names, exactly-once Standing, crew milestone on the ledger wall.
+Config.Accomplishments = {
+	{ id = "glass_ghost", name = "Glass Ghost", blurb = "Paid museum run with security never above Quiet.", standing = 120 },
+	{ id = "hot_hands", name = "Hot Hands", blurb = "Delivered loot while the police wanted you badly.", standing = 80 },
+	{ id = "seawall_haul", name = "Seawall Haul", blurb = "Fenced the heavy crate from a storm convoy.", standing = 150 },
+	{ id = "lights_out_lift", name = "Lights-Out Lift", blurb = "Fenced convoy cargo breached during a blackout.", standing = 100 },
+	{ id = "grid_warden", name = "Grid Warden", blurb = "Reset a blackout somebody else started.", standing = 60 },
+	{ id = "price_on_the_mist", name = "Price on the Mist", blurb = "Collected a bounty of 1,000 or more.", standing = 90 },
+	{ id = "everyone_home", name = "Everyone Home", blurb = "Three or more of you ran a paid job and nobody got arrested.", standing = 100 },
+	{ id = "made_whole", name = "Made Whole", blurb = "Recovered every Mark a raid took from you.", standing = 100 },
+	{ id = "three_doors", name = "Three Doors", blurb = "Entered the Aurora Exchange by the front, the dock and the roof.", standing = 120 },
+	{ id = "storm_runner", name = "Storm Runner", blurb = "Closed a paid museum run in a storm.", standing = 80 },
 }
 
 -- Presentation: feel, camera, weather and graphics tiers. Client-side only; never gameplay authority.

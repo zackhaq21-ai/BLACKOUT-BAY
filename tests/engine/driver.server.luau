@@ -747,6 +747,109 @@ if args.count >= 3 then
 	end)
 end
 
+-- LIVING WORLD: contacts, crew identity + ledger, museum variant, accomplishments ------------------------
+section("world", "contacts", { "crew" }, function()
+	local line = hook:Invoke("talk", leader, "ines")
+	check("dockmaster speaks", "a line", enc(line), type(line) == "table" and type(line.text) == "string" and #line.text > 10)
+	local teo = hook:Invoke("talk", leader, "teo")
+	local st = hook:Invoke("standing", leader)
+	if st.rank == "drifter" or st.rank == "runner" then
+		check("deck mechanic refuses convoy intel below Operator", "mentions the rank", teo.text, teo.text:find(st.rankName) ~= nil or teo.text:find("Standing") ~= nil)
+	end
+	local priya = hook:Invoke("talk", leader, "priya")
+	check("lineman speaks", "a line", enc(priya), type(priya) == "table" and #priya.text > 10)
+	check("unknown contact is nil", nil, hook:Invoke("talk", leader, "nobody"))
+	local counts = hook:Invoke("telemetry")
+	check("telemetry contact_talk", ">= 3", counts.contact_talk, type(counts.contact_talk) == "number" and counts.contact_talk >= 3)
+end)
+
+section("crews", "identity", { "crew" }, function()
+	local rec = waitFor(function()
+		return hook:Invoke("crewRecord", leader)
+	end, 8, "Crew record never loaded for the leader")
+	check("crew record name", "ends with crew", rec.name, type(rec.name) == "string" and #rec.name >= 3)
+	check("rename refused: too short", false, hook:Invoke("crewRename", leader, "ab"))
+	check("rename refused: control characters", false, hook:Invoke("crewRename", leader, "bad\1name"))
+	if #list >= 2 then
+		check("rename refused: not the leader", false, hook:Invoke("crewRename", list[2], "Night Tide"))
+	end
+	task.wait(5.2) -- per-player request spacing
+	local renamed = hook:Invoke("crewRename", leader, "Night Tide")
+	-- Studio may refuse filtering offline; either way the crew keeps a valid name and nothing crashes
+	local after = hook:Invoke("crewRecord", leader)
+	print("GLASSHOUSE_ENGINE_CREW_RENAME", args.count, "accepted", tostring(renamed), "name", after.name)
+	check("crew name valid after rename attempt", "3..20 chars", after.name, #after.name >= 3 and #after.name <= 20)
+	check("ledger history bounded", "<= " .. Config.Crews.MaxHistory, #after.history, #after.history <= Config.Crews.MaxHistory)
+	local unitNow = hook:Invoke("unit", leader)
+	local wall = unitNow and unitNow.model and unitNow.model:FindFirstChild("LedgerWall")
+	check("ledger wall exists in the hideout", "part", wall and "part" or "missing", wall ~= nil)
+	print("GLASSHOUSE_ENGINE_CREW_IDENTITY_SUCCESS", args.count)
+end)
+
+section("replay", "variant", { "setup" }, function()
+	local v = hook:Invoke("museumVariant")
+	check("a curated variant is live after the first restock", "table with id", enc(v), type(v) == "table" and type(v.id) == "string")
+	local firstId = v.id
+	local seen = { [firstId] = true }
+	for _ = 1, 3 do
+		local nv = hook:Invoke("restock")
+		check("restock picks a different variant than the last", "~= " .. firstId, nv and nv.id, nv and nv.id ~= firstId)
+		seen[nv.id] = true
+		firstId = nv.id
+		task.wait(0.5)
+	end
+	local n = 0
+	for _ in pairs(seen) do n += 1 end
+	check("variation across restocks", ">= 2 distinct", n, n >= 2)
+	print("GLASSHOUSE_ENGINE_VARIANT_SUCCESS", args.count)
+end)
+
+section("accomplishments", "accomplishments", { "deliver" }, function()
+	local list0 = hook:Invoke("accomplishments", leader)
+	check("ten accomplishments listed", 10, #list0)
+	local xpBefore = hook:Invoke("standing", leader).xp
+	check("grant once", true, hook:Invoke("grantAccomplishment", leader, "grid_warden"))
+	check("grant twice refused", false, hook:Invoke("grantAccomplishment", leader, "grid_warden"))
+	local xpAfter = hook:Invoke("standing", leader).xp
+	check("accomplishment standing credited once", xpBefore + 60, xpAfter)
+	check("unknown accomplishment refused", false, hook:Invoke("grantAccomplishment", leader, "nope"))
+	local rec = hook:Invoke("crewRecord", leader)
+	check("crew milestone recorded", true, rec and rec.milestones and rec.milestones.grid_warden ~= nil)
+	print("GLASSHOUSE_ENGINE_ACCOMPLISHMENT_SUCCESS", args.count)
+end)
+
+-- STORM CONVOY (rare curated variant, forced by the test): Seawall route, one heavy crate, cleanup ---------
+section("convoy", "stormConvoy", { "convoy" }, function()
+	hook:Invoke("weather", "Storm")
+	task.wait(0.5)
+	-- the earlier convoy section left a cooldown; the test bypasses nothing: wait for it (bounded)
+	local started = hook:Invoke("convoyStartVariant", nil, "storm")
+	if not started then
+		waitFor(function()
+			return hook:Invoke("convoyStartVariant", nil, "storm")
+		end, CC.CooldownSeconds + 10, "Storm convoy could not start within the cooldown")
+	end
+	waitFor(function()
+		return hook:Invoke("convoyVehicles") == 3
+	end, 8, "Storm convoy vehicles did not spawn")
+	local cs = hook:Invoke("convoyState")
+	check("storm variant replicated", "storm", cs.variant)
+	hook:Invoke("convoyHalt", true)
+	task.wait(2.5)
+	local doors = hook:Invoke("convoyDoors")
+	move(leader, doors.Position - doors.CFrame.LookVector * 3)
+	check("storm breach", true, hook:Invoke("breach", leader))
+	local crates = hook:Invoke("convoyCrates")
+	check("one sealed crate", 1, #crates.ids)
+	check("sealed crate value", CC.Storm.CargoValue, crates.total)
+	local item = hook:Invoke("lootItems")[crates.ids[1]]
+	check("sealed crate is heavy", "Heavy", item and item.weight)
+	check("storm convoy ends", true, hook:Invoke("convoyEnd"))
+	hook:Invoke("weather", "Clear")
+	hook:Invoke("clearHeat", leader)
+	print("GLASSHOUSE_ENGINE_STORM_CONVOY_SUCCESS", args.count)
+end)
+
 -- GRAPHICS TIERS: objective capture per tier on the leader (visual judgement is the human checklist) -----
 section("performance", "tiers", { "setup" }, function()
 	for _, tier in ipairs(Config.Presentation.Graphics.Tiers) do

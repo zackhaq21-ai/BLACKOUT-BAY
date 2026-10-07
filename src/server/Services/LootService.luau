@@ -446,7 +446,7 @@ function LootService.cutCase(player: Player, caseId: string): boolean
 end
 
 -- (Re)stock the museum: purge terminal items, remove leftover case items, choose a layout, register and render.
-function LootService.restockMuseum(seed: number)
+function LootService.restockMuseum(seed: number, mix)
 	local museum = LootService.ctx.world.museum
 	ledger:purgeTerminal()
 	for _, case in ipairs(museum.cases) do
@@ -496,12 +496,14 @@ function LootService.restockMuseum(seed: number)
 		renderInCase(ledger:get(id), case)
 		Builder.prompt(case.glass, "Cut the glass", s.label, Config.Museum.GlassCutSeconds, "CaseCut", { CaseId = case.id })
 	end
-	local kinds = { "Trinket", "Trinket", "Trinket", "Relic", "Relic", "Jewel" }
+	-- Curated variant mix when given (MuseumVariants), else the standard stock
+	local kinds = (type(mix) == "table" and type(mix.hall) == "table" and #mix.hall == 6) and mix.hall or { "Trinket", "Trinket", "Trinket", "Relic", "Relic", "Jewel" }
 	for i = 1, 6 do
 		stock(nonVault[i], kinds[i])
 	end
-	for _, case in ipairs(vault) do
-		stock(case, if rng:NextNumber() < 0.5 then "Jewel" else "Relic")
+	local vaultKinds = (type(mix) == "table" and type(mix.vault) == "table" and #mix.vault == 2) and mix.vault or nil
+	for vi, case in ipairs(vault) do
+		stock(case, if vaultKinds then (vaultKinds[vi] or "Relic") elseif rng:NextNumber() < 0.5 then "Jewel" else "Relic")
 	end
 	-- The Core on its pedestal is a special "case" without glass
 	itemCounter += 1
@@ -521,13 +523,13 @@ function LootService.restockMuseum(seed: number)
 end
 
 -- Mint stolen stash as physical bundles on the floor. Returns the new item ids.
-function LootService.mintBundles(values: { number }, position: Vector3, origin: string, label: string?): { string }
+function LootService.mintBundles(values: { number }, position: Vector3, origin: string, label: string?, weight: string?): { string }
 	local ids = {}
 	for i, value in ipairs(values) do
 		itemCounter += 1
 		local id = string.format("Bundle_%d", itemCounter)
 		local spec = Config.Economy.Loot.Bundle
-		ledger:register({ id = id, kind = "Bundle", label = label or spec.label, value = value, weight = "Light", position = position, origin = origin })
+		ledger:register({ id = id, kind = "Bundle", label = label or spec.label, value = value, weight = if weight == "Heavy" then "Heavy" else "Light", position = position, origin = origin })
 		local item = ledger:get(id)
 		item.state = "Dropped"
 		item.position = position

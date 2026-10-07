@@ -5,6 +5,8 @@
 --   Run      {id, xp, won, source?, day?}  credited once per run id; diminished per source per day when day is given
 --   Standing {id, source, xp, day}         award credited once per id; diminished per source per day
 --   Onboarding {step}                      first-session step, monotonic
+--   Accomplish {id, xp}                    accomplishment once per id; credits its own Standing plain
+--   Entry      {entry}                     museum entry seen (front/dock/roof), set once
 --   Receipt  {receipt, item}    entitlement + receipt committed together, idempotent per receipt
 --   Pass     {item}             ownership confirmed by Roblox (game pass)
 --   Equip    {item}             only owned items; never changes stats
@@ -34,6 +36,12 @@ local function ensureStanding(p: any)
 	end
 	if type(p.onboarding) ~= "table" then
 		p.onboarding = { step = 1, done = false }
+	end
+	if type(p.accomplishments) ~= "table" then
+		p.accomplishments = {}
+	end
+	if type(p.entries) ~= "table" then
+		p.entries = {}
 	end
 end
 
@@ -111,6 +119,17 @@ function ProfileOps.apply(p: any, op: Op, catalog: { CatalogItem }): (any, boole
 			p.awardsSeen[op.id] = op.day or "?"
 			p.xp += diminished(p, op.source, op.xp, op.day, (op :: any).members)
 			prune(p, op.day)
+			changed = true
+		end
+	elseif op.kind == "Accomplish" and type(op.id) == "string" and #op.id <= 40 and type(op.xp) == "number" and op.xp == op.xp then
+		if not p.accomplishments[op.id] then
+			p.accomplishments[op.id] = op.day or "?"
+			p.xp += math.max(0, math.min(100000, math.floor(op.xp)))
+			changed = true
+		end
+	elseif op.kind == "Entry" and type(op.item) == "string" and (op.item == "front" or op.item == "dock" or op.item == "roof") then
+		if not p.entries[op.item] then
+			p.entries[op.item] = true
 			changed = true
 		end
 	elseif op.kind == "Onboarding" and type(op.step) == "number" then

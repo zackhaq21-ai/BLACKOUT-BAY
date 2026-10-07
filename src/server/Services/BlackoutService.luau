@@ -19,6 +19,8 @@ local BC = Config.WorldEvents.Blackout
 local EVENT = "blackout"
 
 local gridDown = false
+local lastCutBy: Player? = nil
+local lastCutKey: string? = nil
 local gridLights: { { part: BasePart, material: Enum.Material, color: Color3, light: Light?, brightness: number } } = {}
 local emergencyLights: { { part: BasePart, light: Light } } = {}
 local refs -- substation refs from IslandBuilder
@@ -114,6 +116,17 @@ function BlackoutService.isGridDown(): boolean
 	return gridDown
 end
 
+-- Partial intel for the lineman contact: state, cooldown and configured duration only.
+function BlackoutService.intel()
+	local S = BlackoutService.ctx.services
+	return {
+		down = gridDown,
+		cooldownSeconds = S.WorldEvent.cooldownLeft(EVENT),
+		durationSeconds = BC.DurationSeconds,
+		lastCutBy = if gridDown and lastCutBy and lastCutBy.Parent then Comms.name(lastCutBy) else nil,
+	}
+end
+
 -- Diagnostics for the engine scenario
 function BlackoutService.lightReport(): { dark: number, total: number, emergencyOn: number }
 	local dark, emergencyOn = 0, 0
@@ -200,6 +213,8 @@ local function complete(player: Player, kind: string)
 		if not active then
 			Comms.toast(player, "Can't cut the grid: " .. tostring(err) .. ".", "warn")
 		else
+			lastCutBy = player
+			lastCutKey = Comms.key(player)
 			S.Police.addHeat(player, BC.SaboteurHeat, "cut the harbour grid")
 			S.Telemetry.track("blackout_cut", { crew = crew and #crew.members or 0 })
 			if crew then
@@ -218,6 +233,11 @@ local function complete(player: Player, kind: string)
 			end
 			Comms.toastAll(Comms.name(player) .. " reset the harbour grid. Lights back on.", "warn")
 			S.Progression.award(player, "blackoutReset", tostring(math.floor(ended.startedAt)), 1)
+			S.Accomplishment.check("blackoutReset", { resetterKey = Comms.key(player), cutterKey = lastCutKey }, { player })
+			local rcrew = S.Crew.crewOf(player)
+			if rcrew then
+				S.Crew.note(rcrew.id, "blackoutReset", 0, Comms.name(player) .. " reset the harbour grid")
+			end
 			S.Telemetry.track("blackout_reset", { after = math.floor(workspace:GetServerTimeNow() - ended.startedAt) })
 		end
 	end

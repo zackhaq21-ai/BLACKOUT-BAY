@@ -181,6 +181,10 @@ function PoliceService.arrest(player: Player, byLabel: string, where: string)
 	local Loot = PoliceService.ctx.services.Loot
 	local Security = PoliceService.ctx.services.Security
 	local dropped = Loot.dropAll(player, "arrested")
+	local acrew = PoliceService.ctx.services.Crew.crewOf(player)
+	if acrew then
+		PoliceService.ctx.services.Crew.note(acrew.id, "arrest", 0, Comms.name(player) .. " was arrested at " .. where)
+	end
 	Security.clearKeycards(player)
 	heat:clear(Comms.key(player), "arrested")
 	player:SetAttribute("HeatLevel", 0)

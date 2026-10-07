@@ -68,6 +68,24 @@ return function(t)
 		end
 	end)
 
+	t.test("living world: crews bounds, contacts on the island with valid unlocks, storm route and variants valid", function()
+		local B = require("../src/shared/MapBlueprint")
+		local I = B.Island
+		local Cw = Config.Crews
+		t.truthy(Cw.NameMin >= 2 and Cw.NameMax <= 32 and Cw.NameMin < Cw.NameMax and Cw.RenameCooldownSeconds >= 60 and Cw.MaxHistory >= 5 and Cw.LedgerLines >= 4)
+		for _, c in ipairs(Config.Contacts) do
+			t.truthy(c.x >= I.minX and c.x <= I.maxX and c.z >= I.minZ and c.z <= I.maxZ, c.id .. " off the island")
+			if c.requires then t.truthy(Config.Progression.Unlocks[c.requires], c.id) end
+		end
+		local found = false
+		for _, r in ipairs(B.ConvoyRoutes) do if r.name == Config.WorldEvents.Convoy.Storm.RouteName then found = true end end
+		t.truthy(found, "storm route name exists")
+		t.truthy(Config.WorldEvents.Convoy.Storm.CargoValue > 0 and Config.WorldEvents.Convoy.Storm.Chance > 0 and Config.WorldEvents.Convoy.Storm.Chance <= 1)
+		local MV = require("../src/shared/Core/MuseumVariants")
+		for _, v in ipairs(Config.MuseumVariants) do t.eq(MV.validate(v), nil, v.id) end
+		t.truthy(Config.Progression.Diminish.accomplishment ~= nil)
+	end)
+
 	t.test("world-event constants stay inside their rule bounds", function()
 		local B, C = Config.WorldEvents.Blackout, Config.WorldEvents.Convoy
 		t.truthy(B.DurationSeconds <= B.CooldownSeconds and B.SabotageSeconds < B.DurationSeconds and B.ResetSeconds < B.DurationSeconds)

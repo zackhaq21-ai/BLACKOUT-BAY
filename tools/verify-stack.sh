@@ -3,7 +3,7 @@
 # the previous one. Prints the manifest rows used by docs/REVIEW_STACK.md. Exit 1 on any break.
 set -u
 cd "$(dirname "$0")/.."
-STACK=(claude/roblox-dev-instructions-co8a58 claude/review-m6-decoys claude/review-m7-bounties claude/review-m8-blackouts claude/review-m9-convoys claude/review-m10-polish claude/review-m11-studio-qa claude/review-m12-studio-fixes claude/review-m13-progression)
+STACK=(claude/roblox-dev-instructions-co8a58 claude/review-m6-decoys claude/review-m7-bounties claude/review-m8-blackouts claude/review-m9-convoys claude/review-m10-polish claude/review-m11-studio-qa claude/review-m12-studio-fixes claude/review-m13-progression claude/review-m14-living-world)
 git fetch -q origin "${STACK[@]}" 2>/dev/null || true
 status=0
 prev=""

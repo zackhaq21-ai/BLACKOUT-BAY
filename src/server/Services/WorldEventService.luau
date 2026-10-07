@@ -46,6 +46,16 @@ function WorldEventService.canStart(id: string): (boolean, string?)
 	return rules:canStart(id, now())
 end
 
+-- Seconds of cooldown left for an inactive event (0 when it may start)
+function WorldEventService.cooldownLeft(id: string): number
+	local def = rules.defs[id]
+	local last = rules.lastEndedAt[id]
+	if not def or not last or rules:get(id) then
+		return 0
+	end
+	return math.max(0, def.cooldown - (now() - last))
+end
+
 function WorldEventService.isActive(id: string): boolean
 	return rules:get(id) ~= nil
 end

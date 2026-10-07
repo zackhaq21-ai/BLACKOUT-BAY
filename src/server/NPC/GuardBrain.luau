@@ -133,7 +133,7 @@ function GuardBrain:tick(dt: number, now: number, vision)
 
 	-- Behaviour
 	if level >= 2 then
-		self.humanoid.WalkSpeed = cfg.GuardAlertSpeed
+		self.humanoid.WalkSpeed = cfg.GuardAlertSpeed + (if vision.speedBonus then vision.speedBonus() else 0)
 		local target = self.target
 		local troot = target and vision.playerRoot(target)
 		if troot and target.Parent and not vision.isJailed(target) then
@@ -164,7 +164,7 @@ function GuardBrain:tick(dt: number, now: number, vision)
 		end
 		self:setState("Sweep", "sweeping")
 	else
-		self.humanoid.WalkSpeed = cfg.GuardWalkSpeed
+		self.humanoid.WalkSpeed = cfg.GuardWalkSpeed + (if vision.speedBonus then vision.speedBonus() else 0)
 		self.detainTimer = 0
 		self.target = nil
 		-- Investigate when this guard's own suspicion crosses the threshold

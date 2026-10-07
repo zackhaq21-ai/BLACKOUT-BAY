@@ -109,7 +109,7 @@ function MissionService.startJob(player: Player, silent: boolean?)
 	jobCounter += 1
 	local jobId = string.format("job%d_%s", jobCounter, crew.id)
 	local flow = MissionFlow.new(jobId, crew.id, memberKeys(crew), now)
-	local job = { flow = flow, shares = table.clone(crew.shares), lastDeliverer = nil, lastPhase = "Started", crew = crew, resolvedAt = nil, raid = nil }
+	local job = { flow = flow, shares = table.clone(crew.shares), lastDeliverer = nil, lastPhase = "Started", crew = crew, resolvedAt = nil, raid = nil, entered = {}, entries = {} }
 	jobs[crew.id] = job
 	-- If any member is already inside the museum, the job is on site immediately
 	for _, p in ipairs(crew.members) do
@@ -119,7 +119,8 @@ function MissionService.startJob(player: Player, silent: boolean?)
 	end
 	if not silent then
 		MissionService.ctx.services.EventLog.crew(crew.id, Comms.name(player) .. " started the Aurora Exchange job (split locked)")
-		Comms.toastMany(crew.members, "Job started: the Aurora Exchange. Split is locked. Good luck.", "good")
+		local variant = MissionService.ctx.services.Security.variant()
+		Comms.toastMany(crew.members, "Job started: the Aurora Exchange" .. (if variant then " (" .. variant.name .. ": " .. variant.hint .. ")" else "") .. ". Split is locked. Good luck.", "good")
 	end
 	Crew.broadcast(crew)
 	pushHud(job)
@@ -188,6 +189,24 @@ local function closeJob(crewId: string, reason: string)
 		end
 	end
 	S.Telemetry.track("job_close", { reason = reason, value = flow.job.deliveredValue, headline = summary.headline, members = #present, raid = job.raid ~= nil })
+	-- Accomplishments and the crew ledger
+	local arrests = 0
+	for _ in pairs(flow.job.arrested) do
+		arrests += 1
+	end
+	local presentPlayers = {}
+	for _, key in ipairs(present) do
+		local p = playerByKey(key)
+		if p then
+			table.insert(presentPlayers, p)
+		end
+	end
+	for _, p in ipairs(presentPlayers) do
+		S.Accomplishment.check("jobClosed", { headline = summary.headline, delivered = flow.job.deliveredValue, members = #present, arrests = arrests, weather = S.Environment.state(), heatLevel = S.Police.heatLevel(p), raid = job.raid ~= nil }, { p })
+	end
+	if flow.job.deliveredValue > 0 and not job.raid then
+		S.Crew.note(crewId, "job", flow.job.deliveredValue, string.format("%s: %d fenced (%s)", summary.headline, flow.job.deliveredValue, if S.Security.variant() then S.Security.variant().name else "Aurora Exchange"))
+	end
 	EventLog.crew(crewId, string.format("Job closed (%s): %d delivered", reason, flow.job.deliveredValue), if flow.job.deliveredValue > 0 then "good" else "warn")
 	-- Results: what happened, what you kept, what you lost, what next
 	local lines = {}
@@ -377,6 +396,15 @@ local function tick()
 					end
 					if inside then
 						job.flow:memberEnteredSite(Comms.key(p))
+						if not job.raid and not job.entered[Comms.key(p)] then
+							job.entered[Comms.key(p)] = true
+							local M = Blueprint.Museum
+							local dockExit = MissionService.ctx.world.museum.exits.dock
+							local entry = if root.Position.Y > 18 then "roof" elseif dockExit and (root.Position - dockExit.Position).Magnitude < 40 then "dock" else "front"
+							job.entries[entry] = true
+							MissionService.ctx.services.Accomplishment.noteEntry(p, entry)
+							local _ = M
+						end
 					elseif job.flow:phase() == "LootTaken" then
 						local items = Loot.carriedBy(p)
 						if #items > 0 then

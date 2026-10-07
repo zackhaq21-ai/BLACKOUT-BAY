@@ -107,7 +107,7 @@ hook.OnInvoke = function(action, a, b, c)
 	elseif action == "lootItems" then
 		local out = {}
 		for id, item in pairs(S.Loot.ledger.items) do
-			out[id] = { kind = item.kind, state = item.state, holder = item.holder, value = item.value }
+			out[id] = { kind = item.kind, state = item.state, holder = item.holder, value = item.value, weight = item.weight }
 		end
 		return out
 	elseif action == "lootVisual" then
@@ -206,6 +206,24 @@ hook.OnInvoke = function(action, a, b, c)
 		return S.Convoy.testCrates()
 	elseif action == "convoyVehicles" then
 		return S.Convoy.testVehicles()
+	elseif action == "talk" then
+		return S.Contact.talk(a, b)
+	elseif action == "crewRename" then
+		return S.Crew.rename(a, b)
+	elseif action == "crewRecord" then
+		local crew = S.Crew.crewOf(a)
+		return crew and crew.record or nil
+	elseif action == "museumVariant" then
+		return S.Security.variant()
+	elseif action == "restock" then
+		S.Security.restock()
+		return S.Security.variant()
+	elseif action == "accomplishments" then
+		return S.Accomplishment.list(a)
+	elseif action == "grantAccomplishment" then
+		return S.Accomplishment.grant(a, b)
+	elseif action == "convoyStartVariant" then
+		return S.Convoy.testStart(a, b)
 	elseif action == "standing" then
 		return S.Progression.rankInfo(a)
 	elseif action == "onboarding" then

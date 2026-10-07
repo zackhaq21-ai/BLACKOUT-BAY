@@ -6,6 +6,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local HideoutRecord = require(ReplicatedStorage.Shared.Core.HideoutRecord)
 local StashRules = require(ReplicatedStorage.Shared.Core.StashRules)
+local CrewRecord = require(ReplicatedStorage.Shared.Core.CrewRecord)
 local Builder = require(script.Parent.Parent.Builders.Builder)
 local Comms = require(script.Parent.Comms)
 
@@ -145,6 +146,23 @@ function HideoutService.rebindUnit(unit)
 			HideoutService.bindCrewUnit(crew)
 			return
 		end
+	end
+end
+
+-- Physical crew ledger: bounded lines from the leader's durable crew record
+function HideoutService.refreshLedger(crew)
+	local unit = crew and crew.unit
+	if not unit or not unit.ledgerWall or not crew.record then
+		return
+	end
+	local gui = unit.ledgerWall:FindFirstChild("Label")
+	local tl = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
+	if tl then
+		tl.Text = table.concat(CrewRecord.ledgerLines(crew.record, os.time(), Config.Crews), "\n")
+		tl.TextScaled = false
+		tl.TextSize = 18
+		tl.TextXAlignment = Enum.TextXAlignment.Left
+		tl.TextYAlignment = Enum.TextYAlignment.Top
 	end
 end
 

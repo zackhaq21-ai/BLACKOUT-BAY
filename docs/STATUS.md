@@ -2,26 +2,27 @@
 
 Keep this short. Current task, decisions, changed files, verification, blockers, next step.
 
-## Current state: completion & retention pass, batch 1 on `claude/review-m13-progression` (stacked on m12 `f001b44`)
-Blackout Bay = Glasshouse, one game. Studio evidence pending (owner's PC); code-side systems designed and automatically tested now.
+## Current state: completion & retention pass, batch 2 on `claude/review-m14-living-world` (stacked on m13 `5e88d86`)
+Blackout Bay = Glasshouse. Studio evidence pending; code-side systems designed and automatically tested.
 
 ### Done on this branch
-- Player-journey audit (code): the loop exists end to end; what was missing was *why continue* (progression beyond cosmetics), *what do I do first* (static idle line), and any pacing between jobs and the deeper systems.
-- **Standing** (`Core/Standing`, `ProgressionService`): ranks on the existing durable XP channel; option unlocks (fakes/raids at Runner, bounties/convoy intel at Operator) enforced server-side at the action with a one-line reason; awards from convoy crates, raids, recovery, bounties, blackout resets through a merge-safe `Standing` profile op credited once per id with per-source daily diminishing against the stored counters and a crew bonus; jobs keep the `Run` op with the same diminishing. Rank-up toasts, Results "+N Standing", Looks header with rank and next unlock.
-- **Onboarding** (`Core/Onboarding`, `OnboardingService`): monotonic first-session steps from observed play, one toast per step, idle objective hints, returning players skip, malformed stored steps reset; never locks anything.
-- **Telemetry** (`TelemetryService`): internal bounded ring, Studio print, counts exposed to the engine hook; events for job start/close, standing awards, unlock blocks, onboarding steps, convoy breach/fence, raid/recovery end, bounty claim, blackout cut/reset.
-- Profile schema v2 (`awardsSeen`, `standingDay`, `onboarding`) with validating migration; `ProfileOps.configure` injects Standing/Onboarding so CLI tests, server and Studio run the same code.
-- Scenario sections `gates` (Drifter refusals) and `progression` (Standing rose, onboarding done, telemetry), marker `GLASSHOUSE_ENGINE_PROGRESSION_SUCCESS`.
+- **Contacts** (`Core/ContactRules`, `ContactService`): Ines Varga (Dockmaster, museum brief + richest stash), Teo Lindqvist (deck mechanic, bucketed convoy ETA, storm warning; Operator), Priya Sandoval (Lineman, grid state/cooldown/duration; Runner). NPC rigs with Talk prompts; lines from authoritative state via `Dialogue` remote; telemetry.
+- **Persistent crew identity** (`Core/CrewRecord`, `CrewStore`): durable record per owner, bounded members/history/milestones, validated + TextService-filtered rename with cooldown and per-request spacing, summary in the crew snapshot, rename UI for the leader.
+- **Crew ledger wall**: physical board in every pier's living space written from the record on bind and on every note (jobs, raids taken/suffered, recovery, convoy crates, bounties, blackout resets, arrests, milestones).
+- **Museum replay variation** (`Core/MuseumVariants`): five curated variants picked per restock (weighted, never the last, weather-gated), applied through existing systems: loot mix, lockdown delay, guard speed bonus, camera sweep, service entry (shutter down + dock open), maintenance power cut. Restock toast and job-start brief.
+- **Storm convoy**: rare curated variant (Seawall Loop, one Heavy sealed crate of 5,000) through the existing convoy, weather and loot systems; banner line; `ConvoyState.variant`.
+- **Accomplishments** (`Core/Accomplishments`, `AccomplishmentService`): ten originals, exactly-once `Accomplish` profile op with own Standing, crew milestones, museum entry detection (front/dock/roof) stored per profile.
+- Scenario sections `contacts`, `identity`, `variant`, `accomplishments`, `stormConvoy`; hook actions for each.
 
 ### Verification
-`tools/check.sh`: 0 type errors, 0 lint warnings, 99/99 logic tests; both places build; `tools/verify-stack.sh` passes. Studio: pending.
+`tools/check.sh`: 0 type errors, 0 lint warnings, 114/114 logic tests; both places build; `tools/verify-stack.sh` passes. Studio: pending (TextService filtering, rigs, wall readability, variant effects, heavy carry are visual/live items).
 
 ### Decisions in force
-Full stash exposure; banking enabled; 7-stud takedowns; m6–m12 preserved unchanged; no merges without approval; no economy value changes, no StreamingEnabled, no asset fills until evidence; progression unlocks options only.
+Full stash exposure; banking enabled; 7-stud takedowns; progression thresholds and gates unchanged (200/600/1500/4000); m6–m13 preserved; no merges without approval; no economy value changes; no asset fills; no new currency.
 
 ### Not implemented (from the full vision)
 Player police faction, aircraft, vehicle earning; rare car in-world and its persistence decision; weapons/combat beyond takedowns; live purchases; sound assets; custom art; performance profiling.
 
 ### Next task
-1. On the prepared PC: check out `claude/review-m13-progression`, run `.\tools\verify-engine.ps1 -Players 1,3,5 -ExpectedBranch claude/review-m13-progression`, paste the `GLASSHOUSE_*` lines back; then the human checklist in `docs/STUDIO_QA_MASTER.md` including the new first-session row.
-2. Batch 2 of the completion pass: contacts and in-world job discovery on the existing board/event plumbing (few memorable originals, config-driven), crew identity persistence (name, record), replay variation for the museum job (curated entry/security/weather/loot combinations), accomplishments. Each with tests; no economy value changes.
+1. On the prepared PC: check out `claude/review-m14-living-world`, run `.\tools\verify-engine.ps1 -Players 1,3,5 -ExpectedBranch claude/review-m14-living-world`, paste the `GLASSHOUSE_*` lines back; then the human checklist in `docs/STUDIO_QA_MASTER.md` including the new first-session row.
+2. Content density pass from `docs/DENSITY_AUDIT.md`: give purpose to empty blocks and rarely met mechanics without new systems; then Studio evidence decides tuning.

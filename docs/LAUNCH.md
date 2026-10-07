@@ -19,6 +19,13 @@ Or run `rojo serve` and connect the Rojo Studio plugin to live-sync.
 ## Bounties (two or more clients)
 Board → **Wanted** tab: type an amount (min 100) and press **Add bounty** on another player. Expected: your stash drops by that amount, their nameplate shows "BOUNTY n", everyone sees a WANTED notice. A third client who is not in the target's crew walks up to the target on foot and holds **Take down** for 2 s: the target drops their bag and is down for 4 s, the hunter's stash rises by the whole bounty, and the nameplate clears. The contributor pressing Take down is refused.
 
+## Living world (any number of clients)
+- **Contacts**: walk to Ines on the Harbour Office steps (north of the piers), Teo under the Parking Deck, Priya at the Harbour Substation gate. Hold **Talk**. Expected: one line each as a toast with the speaker's name; Teo and Priya refuse intel below Operator / Runner with your rank in the line.
+- **Crew name**: leader opens the board → Job tab → type a name in the crew box → **Rename crew**. Expected: filter runs, "Crew renamed: …" to the crew, the crew header shows it, and the **CREW LEDGER** wall on the west side of your pier's living space shows the name and your record. A second rename within 5 minutes is refused.
+- **Tonight's variant**: on each restock everyone sees "Tonight at the Aurora Exchange: …". Service Shift: the front shutter is down and the dock door open. Maintenance Window: cameras are dark. Gala Stock: guards move faster and the shutter drops in 15 s.
+- **Storm convoy**: when a convoy is announced during a Storm, Teo mentions the Seawall; the banner reads "STORM RUN · one heavy sealed crate"; breaching yields one heavy crate (slow carry, no jumping).
+- **Accomplishments**: finish a paid run with security never above Quiet → "Accomplishment: Glass Ghost" and a ledger milestone.
+
 ## First session (new profile)
 Join with a fresh test profile. Expected: the objective panel reads "Welcome to Blackout Bay" with a one-line hint; walking out of the pier changes it to "Open the job board"; opening the board (Hideout tab refresh) to "Start the Aurora Exchange job"; starting it to "Take something"; the first pickup to "Get it home"; the first paid delivery ends onboarding with one toast and the Results screen shows "+N Standing". The Looks tab header reads "Standing N · Drifter · next: Runner at 200 (unlocks fake bags and decoy runs, raiding other hideouts)". Pressing Fake Jewel or Raid as a Drifter is refused with the unlock line; after Runner both work.
 

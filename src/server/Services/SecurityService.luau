@@ -35,6 +35,11 @@ local junctionCutUntil = 0
 local gridPowerOff = false
 local lastNoiseAt = {} -- key -> time (throttle noise reports from held prompts)
 local frozen = false -- engine tests freeze guards and cameras to isolate rules
+local setInteriorLights -- defined with the interaction handlers below; used by the variant restock above them
+local MuseumVariants = require(ReplicatedStorage.Shared.Core.MuseumVariants)
+local variantRng = Random.new()
+local currentVariant = nil -- the curated variant live since the last restock
+local posture = { lockdownDelay = Config.Museum.LockdownDelaySeconds, guardSpeedBonus = 0, cameraSweepSeconds = Config.Museum.CameraSweepSeconds }
 
 local function now()
 	return os.clock()
@@ -116,6 +121,9 @@ SecurityService.vision = {
 	end,
 	viewScale = function()
 		return guardVisionScale
+	end,
+	speedBonus = function()
+		return posture.guardSpeedBonus
 	end,
 }
 
@@ -336,14 +344,49 @@ end
 
 -- Restock ------------------------------------------------------------------------------------
 local restockSeed = 0
+
+-- The live curated variant (nil between stocks)
+function SecurityService.variant()
+	return currentVariant
+end
+
+local function applyVariant(v)
+	currentVariant = v
+	posture = { lockdownDelay = v.posture.lockdownDelay, guardSpeedBonus = v.posture.guardSpeedBonus, cameraSweepSeconds = v.posture.cameraSweepSeconds }
+	security.cfg.lockdownDelay = v.posture.lockdownDelay
+	if v.entry == "service" then
+		setShutter(true)
+		openDockTemporarily(Config.Museum.DockOpenSeconds * 4)
+	end
+	if v.infrastructure == "powerCut" then
+		junctionCutUntil = now() + Config.Museum.PowerCutSeconds
+		security:cutPower(now(), Config.Museum.PowerCutSeconds)
+		setInteriorLights(false)
+		task.delay(Config.Museum.PowerCutSeconds + 0.5, function()
+			if currentVariant == v and not security:powerCutActive(now()) and not gridPowerOff then
+				setInteriorLights(true)
+			end
+		end)
+	end
+	Comms.toastAll(string.format("Tonight at the Aurora Exchange: %s. %s", v.name, v.hint), "info")
+	SecurityService.ctx.services.Telemetry.track("museum_variant", { id = v.id, weather = SecurityService.ctx.services.Environment.state() })
+end
+
 function SecurityService.restock()
 	restockSeed += 1
-	local Loot = SecurityService.ctx.services.Loot
-	Loot.restockMuseum(os.time() + restockSeed)
+	local S = SecurityService.ctx.services
+	local Loot = S.Loot
+	local weather = S.Environment and S.Environment.state() or "Clear"
+	local picked = MuseumVariants.pick(Config.MuseumVariants, weather, currentVariant and currentVariant.id or nil, function()
+		return variantRng:NextNumber()
+	end)
+	Loot.restockMuseum(os.time() + restockSeed, picked)
 	security:reset(now())
 	setVault(false)
 	setDockDoor(false)
 	setShutter(false)
+	posture = { lockdownDelay = Config.Museum.LockdownDelaySeconds, guardSpeedBonus = 0, cameraSweepSeconds = Config.Museum.CameraSweepSeconds }
+	security.cfg.lockdownDelay = Config.Museum.LockdownDelaySeconds
 	for _, d in ipairs(museum.frontDoors) do
 		d.Transparency = 0.3
 		d.CanCollide = true
@@ -364,6 +407,9 @@ function SecurityService.restock()
 	end
 	swipes = {}
 	wrongCodeStreak = {}
+	if picked then
+		applyVariant(picked)
+	end
 	restock.last = now()
 	restock.pending = nil
 	Comms.toastAll("The Aurora Exchange has restocked. The vault is sealed and the dock code has changed.", "info")
@@ -404,7 +450,7 @@ end
 local function tickCameras(dt: number, t: number)
 	local active = security:camerasActive(t)
 	for i, cam in ipairs(cameras) do
-		local sweep = math.rad(Config.Museum.CameraSweepDegrees / 2) * math.sin(t * (2 * math.pi / Config.Museum.CameraSweepSeconds) + i)
+		local sweep = math.rad(Config.Museum.CameraSweepDegrees / 2) * math.sin(t * (2 * math.pi / posture.cameraSweepSeconds) + i)
 		local cf = cam.baseCFrame * CFrame.Angles(0, sweep, 0)
 		cam.part.CFrame = cf
 		cam.lens.CFrame = cf * CFrame.new(0, 0, -1.6)
@@ -504,7 +550,7 @@ function SecurityService.onDockRelease(player: Player)
 end
 
 -- Dim the interior while the power is out (junction box or harbour blackout)
-local function setInteriorLights(on: boolean)
+function setInteriorLights(on: boolean)
 	for _, c in ipairs(museum.model:GetChildren()) do
 		if c.Name == "CeilingLight" then
 			c.Material = if on then Enum.Material.Neon else Enum.Material.SmoothPlastic

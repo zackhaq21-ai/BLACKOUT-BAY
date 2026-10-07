@@ -46,6 +46,12 @@ GLASSHOUSE_ENGINE_ALL_PASSED       (runner: every requested player count passed)
 | recovery | raids | 3/5 | raid | `GLASSHOUSE_ENGINE_RECOVERY_SUCCESS` | exactly the stolen amount back, raider debited exactly, one claim chain |
 | bounty | bounties | 3/5 | raid | `GLASSHOUSE_ENGINE_BOUNTY_SUCCESS` | prompt range = `Config.Bounty.TakedownRange`; contributor, forged trigger and out-of-range refused; hunter paid exactly once |
 | torture | cross | 3/5 | blackout, convoy, bounty | `GLASSHOUSE_ENGINE_TORTURE_SUCCESS` | see §4 |
+| gates / progression | progression | 1/3/5 | crew / deliver | `GLASSHOUSE_ENGINE_PROGRESSION_SUCCESS` | Drifter refusals; Standing rose; onboarding done; telemetry |
+| contacts | world | 1/3/5 | crew | — | three contacts answer; locked intel names the rank; unknown contact nil |
+| identity | crews | 1/3/5 | crew | `GLASSHOUSE_ENGINE_CREW_IDENTITY_SUCCESS` | record loads; invalid renames refused; name stays valid; history bounded; ledger wall part exists |
+| variant | replay | 1/3/5 | setup | `GLASSHOUSE_ENGINE_VARIANT_SUCCESS` | a variant is live; restocks never repeat the last; ≥ 2 distinct |
+| accomplishments | accomplishments | 1/3/5 | deliver | `GLASSHOUSE_ENGINE_ACCOMPLISHMENT_SUCCESS` | ten listed; grant once; second grant refused; Standing credited once; crew milestone |
+| stormConvoy | convoy | 1/3/5 | convoy | `GLASSHOUSE_ENGINE_STORM_CONVOY_SUCCESS` | storm variant replicated; one heavy sealed crate at the configured value; cleanup |
 | tiers | performance | 1/3/5 | setup | `GLASSHOUSE_ENGINE_TIERS_SUCCESS` | Low/Medium/High/Max switch acknowledged by the client; PERF sample per tier |
 | disconnect | crew | 3/5 | raid | `GLASSHOUSE_ENGINE_DISCONNECT_OK` | a leaving carrier drops the bag |
 

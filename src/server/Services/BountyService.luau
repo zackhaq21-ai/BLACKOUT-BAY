@@ -248,6 +248,11 @@ function BountyService.completeTakedown(hunter: Player, prompt: ProximityPrompt)
 	S.Hideout.depositStash(hunter, payout, "bounty on " .. Comms.name(target))
 	S.Progression.award(hunter, "bounty", tostring(target.UserId) .. ":" .. tostring(math.floor(os.time())), 1)
 	S.Telemetry.track("bounty_claimed", { payout = payout })
+	S.Accomplishment.check("bountyClaimed", { payout = payout }, { hunter })
+	local bcrew = S.Crew.crewOf(hunter)
+	if bcrew then
+		S.Crew.note(bcrew.id, "bounty", payout, Comms.name(hunter) .. " collected " .. payout .. " on " .. Comms.name(target))
+	end
 	S.Hideout.pushState(target)
 	local where = Blueprint.nearestLandmark(troot.Position.X, troot.Position.Z)
 	Comms.cue(hunter, "Payout")
